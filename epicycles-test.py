@@ -20,15 +20,14 @@ def IDFT(y):
         x[k] = x[k]/N
     return x
 
-def angle(x, y) :
-    if x > 0 :
-        return atan(y/x)
-    if x < 0 :
-        return atan(y/x)+pi
-    if y > 0 :
-        return pi/2
-    if y < 0 :
-        return -pi/2
+def DFT(x) :
+    N = len(x)
+    y = []
+    for k in range(N) :
+        y.append(0+0j)
+        for n in range(N) :
+            y[k] += e**(-2.0j*pi*k*n/N)*x[n]
+    return y
 
 def near(n) :
     if n - floor(n) < 0.5 :
@@ -56,6 +55,7 @@ class window :
         self.canvas.create_line(0, window.SIZE, 2*window.SIZE, window.SIZE, fill='gray')
         self.canvas.create_line(window.SIZE, 0, window.SIZE, 2*window.SIZE, fill='gray')
         #axies
+        self._flag = 0
         self.show_lines = True
         self.show_points = True
         self.show_animation = False
@@ -122,7 +122,7 @@ class window :
             self.text_log.insert(tk.END, 'removed point at (%d, %d)\n' % (self.points.pop(), self.points.pop()))
         if len(self.points)==2 :
             self.canvas.delete(self.lines_id)
-        
+    
     def draw(self) :
         self.canvas.after(window.REFRESH, self.draw)
         if self.drawing :
@@ -130,16 +130,13 @@ class window :
         self.drawing = True
         if self.show_animation :
             #print 'animation running at %f' % tmp
-            N = len(self.n)
-            tmp = (time.time()/N*4 - floor(time.time()/N*2/pi)*2.0*pi)
-            x, y = 0.0, 0.0
-            for k in range(N) :
-                #print (self.epicycles_id[k], int(x-self.r[k]), int(y-self.r[k]), int(x+self.r[k]), int(y+self.r[k]))
-                self.canvas.coords(self.epicycles_id[k], int(x-self.r[k])+window.SIZE, int(y-self.r[k])+window.SIZE, int(x+self.r[k])+window.SIZE, int(y+self.r[k])+window.SIZE)
-                x += self.r[k]*cos(tmp*self.n[k]+self.p[k])
-                y += self.r[k]*sin(tmp*self.n[k]+self.p[k])
-            #test
-            self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
+            N = len(self.inv)
+            self._flag = self._flag + 1
+            
+            _tmp = 0+0j
+            for n in range(N) :
+                _tmp += e**(-2.0j*pi*self._flag*n/N)*self.inv[n]
+            self.upload_tracers(int(_tmp.real) + window.SIZE, int(_tmp.imag) + window.SIZE)
             #print '-'*50
             #time.sleep(1)
         if self.show_lines and len(self.points)>=4 :
@@ -158,28 +155,12 @@ class window :
         self.text_log.insert(tk.END, 'Calculating position...\n')
         array = []
         for i in range(len(self.points)/2) :
-            array.append((1.0*self.points[i])/window.SIZE+(1.0j*self.points[i])/window.SIZE)
+            array.append((1.0*self.points[i])+(1.0j*self.points[i]))
         self.text_log.insert(tk.END, '%s\n' % array)
         self.text_log.insert(tk.END, 'Running IDFT...\n')
-        inv = IDFT(array)
-        self.text_log.insert(tk.END, '%s\n' % inv)
-        self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
-        self.r = []
-        self.p = []
-        self.n = []
-        #the epcycle data
-        _inv = []
-        for i in range(len(inv)) :
-            _inv.append((inv[i], i))
-        #`_inv` is a tuple to hold the speed value while sorting
-        for (z, n) in sorted(_inv, key=lambda _ : -abs(_[0])) :
-            if abs(z)*window.SIZE < 0.3 :
-                break       #filter the circles which are too small
-            self.r.append(abs(z)*window.SIZE)
-            self.p.append(angle(z.real, z.imag))
-            self.n.append(n)
-            self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
-            self.text_log.insert(tk.END, 'circle: r = %.4f, p = %3.4f, s = %d\n' % (self.r[-1], self.p[-1], n))
+        self.inv = IDFT(array)
+        self.text_log.insert(tk.END, '%s\n' % self.inv)
+        self.text_log.insert(tk.END, '%s\n' % DFT(self.inv))
         self.text_log.insert(tk.END, 'Calulation done.\n\n\n\n')
         self.button_animation.configure(state=tk.NORMAL)
         
