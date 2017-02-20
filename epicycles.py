@@ -20,16 +20,6 @@ def IDFT(y):
         x[k] = x[k]/N
     return x
 
-def angle(x, y) :
-    if x > 0 :
-        return atan(y/x)
-    if x < 0 :
-        return atan(y/x)+pi
-    if y > 0 :
-        return pi/2
-    if y < 0 :
-        return -pi/2
-
 def near(n) :
     if n - floor(n) < 0.5 :
         return floor(n)
@@ -158,7 +148,7 @@ class window :
         self.text_log.insert(tk.END, 'Calculating position...\n')
         array = []
         for i in range(len(self.points)/2) :
-            array.append((1.0*self.points[i])/window.SIZE+(1.0j*self.points[i])/window.SIZE)
+            array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
         self.text_log.insert(tk.END, '%s\n' % array)
         self.text_log.insert(tk.END, 'Running IDFT...\n')
         inv = IDFT(array)
@@ -176,7 +166,7 @@ class window :
             if abs(z)*window.SIZE < 0.3 :
                 break       #filter the circles which are too small
             self.r.append(abs(z)*window.SIZE)
-            self.p.append(angle(z.real, z.imag))
+            self.p.append(atan2(z.imag, z.real))
             self.n.append(n)
             self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
             self.text_log.insert(tk.END, 'circle: r = %.4f, p = %3.4f, s = %d\n' % (self.r[-1], self.p[-1], n))
