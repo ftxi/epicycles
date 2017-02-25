@@ -4,6 +4,11 @@
 import Tkinter as tk    #GUI
 import time             
 from math import *      #mathematical stuff
+import numpy as np
+from scipy.fftpack import fft, ifft
+from scipy.interpolate import interp1d
+
+
 
 def IDFT(y):
     '''
@@ -29,9 +34,9 @@ class window :
     '''
     The program window.
     '''
-    SIZE = 170
-    REFRESH = 50 #refresh every 50 miliseconds
-    MAX_TRACERS = 100
+    SIZE = 300
+    REFRESH = 40 #refresh every 50 miliseconds
+    MAX_TRACERS = 400
     
     def __init__(self) :
         self.root = tk.Tk()
@@ -75,7 +80,7 @@ class window :
         self.button_points = tk.Button(self.frame_buttons, text='toggle points display')
         self.button_points.bind('<ButtonRelease-1>', self.on_points_display)
         self.button_points.pack(side=tk.TOP, fill=tk.X)
-        self.button_about = tk.Button(self.frame_buttons, text='About Epicycles & virtualize')
+        self.button_about = tk.Button(self.frame_buttons, text='About Epicycles & sclereid')
         self.button_about.pack(side=tk.TOP, fill=tk.X)
         self.frame_buttons.pack(side=tk.RIGHT, expand=tk.YES, fill=tk.Y)
         #buttons
