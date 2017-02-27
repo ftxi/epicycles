@@ -6,7 +6,7 @@ import time
 from math import *      #mathematical stuff
 import numpy as np
 from scipy.fftpack import fft, ifft
-from scipy.interpolate import interp1d
+from scipy import interpolate
 
 
 
@@ -37,6 +37,7 @@ class window :
     SIZE = 300
     REFRESH = 40 #refresh every 50 miliseconds
     MAX_TRACERS = 400
+    MAX_EPICYCLES = 10
     
     def __init__(self) :
         self.root = tk.Tk()
@@ -52,6 +53,7 @@ class window :
         self.canvas.create_line(window.SIZE, 0, window.SIZE, 2*window.SIZE, fill='gray')
         #axies
         self.show_lines = True
+        self.lines_flag = False
         self.show_points = True
         self.show_animation = False
         self.lines_id = self.canvas.create_line(0,0,0,0)
@@ -67,10 +69,10 @@ class window :
         self.button_animation = tk.Button(self.frame_buttons, text='show animation', state=tk.DISABLED)
         self.button_animation.bind('<ButtonRelease-1>', self.on_toggle_animation) 
         self.button_animation.pack(side=tk.TOP, fill=tk.X)
-        self.frame_logs = tk.Frame(self.root, width=100)
-        self.text_log = tk.Text(self.frame_logs, height = 20, width=40)
+        self.frame_logs = tk.Frame(self.root, width=200)
+        self.text_log = tk.Text(self.frame_logs, height = 40, width=80)
         self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.text_log.yview)
-        self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans',6))
+        self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans',8))
         self.text_log.pack(side=tk.LEFT, fill=tk.X)
         self.scroll_log.pack(side=tk.RIGHT, fill=tk.Y)
         self.frame_logs.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
@@ -106,12 +108,14 @@ class window :
         self.show_animation = not self.show_animation
     
     def onclick(self, me) :
+        self.lines_flag = False
         self.points.append(me.x-window.SIZE)
         self.points.append(me.y-window.SIZE)
         self.points_id.append(self.canvas.create_oval(me.x-1, me.y-1, me.x+1, me.y+1, tag='p', outline='orange'))
         self.text_log.insert(tk.END, 'mouse clicking (%d, %d)\n' % (me.x-window.SIZE, me.y-window.SIZE))
 
     def undo_click(self, me) :
+        self.lines_flag = False
         if len(self.points)>0 :
             self.canvas.delete(self.points_id.pop())
             self.text_log.insert(tk.END, 'removed point at (%d, %d)\n' % (self.points.pop(), self.points.pop()))
@@ -126,7 +130,7 @@ class window :
         if self.show_animation :
             #print 'animation running at %f' % tmp
             N = len(self.n)
-            tmp = (time.time()/N*4 - floor(time.time()/N*2/pi)*2.0*pi)
+            tmp = (time.time()/N*4 - floor(time.time()/N*2/pi)*2.0*pi)*10
             x, y = 0.0, 0.0
             for k in range(N) :
                 #print (self.epicycles_id[k], int(x-self.r[k]), int(y-self.r[k]), int(x+self.r[k]), int(y+self.r[k]))
@@ -137,7 +141,10 @@ class window :
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
             #print '-'*50
             #time.sleep(1)
-        if self.show_lines and len(self.points)>=4 :
+        if self.show_lines and self.lines_flag :
+            self.canvas.delete(self.lines_id)
+            self.lines_id = self.canvas.create_line(map(lambda x : x+window.SIZE, self.interped), fill='gray90')
+        elif len(self.points)>=4 :
             self.canvas.delete(self.lines_id)
             self.lines_id = self.canvas.create_line(map(lambda x : x+window.SIZE, self.points), fill='gray70')
         self.drawing = False
@@ -151,12 +158,30 @@ class window :
 
     def calculate(self, event) :
         self.text_log.insert(tk.END, 'Calculating position...\n')
-        array = []
+        #a = np.array(self.points[::2])+np.array(self.points[1::2])*1.0j
+        
+        #smoothing
+        x = 1.0*np.array(self.points[::2])/window.SIZE
+        y = 1.0*np.array(self.points[1::2])/window.SIZE
+        t = np.arange(0, len(x))
+        tck, u = interpolate.splprep([x, y], s=0)
+        unew = np.arange(0, len(x), 1.0*len(x)/window.MAX_EPICYCLES)
+        out = interpolate.splev(unew, tck)
+        a = out[0] + out[1]*1.0j
+        
+        self.interped = []
+        for x in a :
+            self.interped.append(x.real)
+            self.interped.append(x.imag)
+        print self.interped
+        '''
+        a = []
         for i in range(len(self.points)/2) :
-            array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
-        self.text_log.insert(tk.END, '%s\n' % array)
+            a.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
+        '''
+        self.text_log.insert(tk.END, '%s\n' % a)
         self.text_log.insert(tk.END, 'Running IDFT...\n')
-        inv = IDFT(array)
+        inv = ifft(a)
         self.text_log.insert(tk.END, '%s\n' % inv)
         self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
         self.r = []
@@ -165,10 +190,10 @@ class window :
         #the epcycle data
         _inv = []
         for i in range(len(inv)) :
-            _inv.append((inv[i], i))
+            _inv.append((inv.flat[i], i))
         #`_inv` is a tuple to hold the speed value while sorting
         for (z, n) in sorted(_inv, key=lambda _ : -abs(_[0])) :
-            if abs(z)*window.SIZE < 0.3 :
+            if abs(z)*window.SIZE < 0.1 :
                 break       #filter the circles which are too small
             self.r.append(abs(z)*window.SIZE)
             self.p.append(atan2(z.imag, z.real))
@@ -176,6 +201,7 @@ class window :
             self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
             self.text_log.insert(tk.END, 'circle: r = %.4f, p = %3.4f, s = %d\n' % (self.r[-1], self.p[-1], n))
         self.text_log.insert(tk.END, 'Calulation done.\n\n\n\n')
+        self.lines_flag = True
         self.button_animation.configure(state=tk.NORMAL)
         
 
