@@ -6,29 +6,8 @@ import time
 from math import *      #mathematical stuff
 import numpy as np
 from scipy.fftpack import fft, ifft
-from scipy.interpolate import interp1d
+from scipy import interpolate
 
-
-
-def IDFT(y):
-    '''
-    Since python on pi donesn't contain these by default
-    I had to write one on my own(maybe temprarily)
-    the DFT() is calculated by the epicycles
-    '''
-    N = len(y)
-    x = []
-    for k in range(N) :
-        x.append(0+0j)
-        for n in range(N) :
-            x[k] += e**(2.0j*pi*k*n/N)*y[n]
-        x[k] = x[k]/N
-    return x
-
-def near(n) :
-    if n - floor(n) < 0.5 :
-        return floor(n)
-    return floor(n) + 1
 
 class window :
     '''
@@ -150,13 +129,19 @@ class window :
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self, event) :
-        self.text_log.insert(tk.END, 'Calculating position...\n')
-        array = []
-        for i in range(len(self.points)/2) :
-            array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
-        self.text_log.insert(tk.END, '%s\n' % array)
+        self.text_log.insert(tk.END, 'Interpolating points...\n')
+		
+		ax = np.append(self.points[::2], [self.points[0]])
+		ay = np.append(self.points[1::2], [self.points[1]])
+		tck, u = interpolate.splprep([x, y], s=0)
+		unew = np.arange(0, 1.01, 0.01)
+		out = interpolate.splev(unew, tck)
+		array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
+		
+        self.text_log.insert(tk.END, '%s\n' % array.__repr__())
         self.text_log.insert(tk.END, 'Running IDFT...\n')
-        inv = IDFT(array)
+		
+        inv = ifft(array)
         self.text_log.insert(tk.END, '%s\n' % inv)
         self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
         self.r = []
@@ -181,8 +166,4 @@ class window :
 
 if __name__ == '__main__' :
     window()
-    '''
-    a = [1, 2, 3, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7]
-    print a
-    print IDFT(a)
-    '''
+
