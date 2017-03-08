@@ -4,38 +4,17 @@
 import Tkinter as tk    #GUI
 import time             
 from math import *      #mathematical stuff
-import numpy as np
+import numpy as np      #numpy array
 from scipy.fftpack import fft, ifft
 from scipy import interpolate
 
-
-
-def IDFT(y):
-    '''
-    Since python on pi donesn't contain these by default
-    I had to write one on my own(maybe temprarily)
-    the DFT() is calculated by the epicycles
-    '''
-    N = len(y)
-    x = []
-    for k in range(N) :
-        x.append(0+0j)
-        for n in range(N) :
-            x[k] += e**(2.0j*pi*k*n/N)*y[n]
-        x[k] = x[k]/N
-    return x
-
-def near(n) :
-    if n - floor(n) < 0.5 :
-        return floor(n)
-    return floor(n) + 1
 
 class window :
     '''
     The program window.
     '''
-    SIZE = 300
-    REFRESH = 30 #refresh every 50 miliseconds
+    SIZE = 300   #600*600px screen
+    REFRESH = 30 #refresh every 30 miliseconds
     MAX_TRACERS = 1000
     
     def __init__(self) :
@@ -51,6 +30,7 @@ class window :
         self.canvas.create_line(0, window.SIZE, 2*window.SIZE, window.SIZE, fill='gray')
         self.canvas.create_line(window.SIZE, 0, window.SIZE, 2*window.SIZE, fill='gray')
         #axies
+        
         self.show_lines = True
         self.show_points = True
         self.show_animation = False
@@ -59,12 +39,14 @@ class window :
         self.epicycles_id = []
         self.tracers_id = map(lambda x : 0, range(window.MAX_TRACERS))
         self.tn = 0
+        
         #widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_calculate = tk.Button(self.frame_buttons, text='calculate')
         self.button_calculate.bind('<ButtonRelease-1>', self.calculate)
         self.button_calculate.pack(side=tk.TOP, fill=tk.X)
         self.button_animation = tk.Button(self.frame_buttons, text='show animation', state=tk.DISABLED)
+        #disabled, not accessible until a calculation is done
         self.button_animation.bind('<ButtonRelease-1>', self.on_toggle_animation) 
         self.button_animation.pack(side=tk.TOP, fill=tk.X)
         self.frame_logs = tk.Frame(self.root, width=100)
@@ -74,6 +56,7 @@ class window :
         self.text_log.pack(side=tk.LEFT, fill=tk.X)
         self.scroll_log.pack(side=tk.RIGHT, fill=tk.Y)
         self.frame_logs.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
+        #used for displaying interactive log
         self.button_lines = tk.Button(self.frame_buttons, text='toggle lines display')
         self.button_lines.bind('<ButtonRelease-1>', self.on_lines_display)
         self.button_lines.pack(side=tk.TOP, fill=tk.X)
@@ -124,12 +107,11 @@ class window :
             return
         self.drawing = True
         if self.show_animation :
-            #print 'animation running at %f' % tmp
+            #paint epicycles
             N = len(self.n)
             tmp = (time.time()/N*4 - floor(time.time()/N*2/pi)*2.0*pi)
             x, y = 0.0, 0.0
             for k in range(N) :
-                #print (self.epicycles_id[k], int(x-self.r[k]), int(y-self.r[k]), int(x+self.r[k]), int(y+self.r[k]))
                 self.canvas.coords(self.epicycles_id[k], int(x-self.r[k])+window.SIZE, int(y-self.r[k])+window.SIZE, int(x+self.r[k])+window.SIZE, int(y+self.r[k])+window.SIZE)
                 x += self.r[k]*cos(tmp*self.n[k]+self.p[k])
                 y += self.r[k]*sin(tmp*self.n[k]+self.p[k])
@@ -138,6 +120,7 @@ class window :
             #print '-'*50
             #time.sleep(1)
         if self.show_lines and len(self.points)>=4 :
+            #paint lines （violently）
             self.canvas.delete(self.lines_id)
             self.lines_id = self.canvas.create_line(map(lambda x : x+window.SIZE, self.points), fill='gray70')
         self.drawing = False
@@ -150,6 +133,7 @@ class window :
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self, event) :
+        self.text_log.insert(tk.END, '%s\n' % array.__repr__())
         self.text_log.insert(tk.END, 'Interpolating points...\n')
         
         ax = np.append(self.points[::2], [self.points[0]])
@@ -159,16 +143,7 @@ class window :
         out = interpolate.splev(unew, tck)
         array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
         
-        self.text_log.insert(tk.END, '%s\n' % array.__repr__())
-        
-        '''
-        array = []
-        for i in range(len(self.points)/2) :
-            array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
-        '''
-        
-        self.text_log.insert(tk.END, '%s\n' % array)
-        self.text_log.insert(tk.END, 'Running IDFT...\n')
+        self.text_log.insert(tk.END, 'Running ifft...\n')
         inv = ifft(array)
         self.text_log.insert(tk.END, '%s\n' % inv)
         self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
@@ -194,8 +169,4 @@ class window :
 
 if __name__ == '__main__' :
     window()
-    '''
-    a = [1, 2, 3, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7]
-    print a
-    print IDFT(a)
-    '''
+
