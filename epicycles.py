@@ -131,12 +131,12 @@ class window :
     def calculate(self, event) :
         self.text_log.insert(tk.END, 'Interpolating points...\n')
 		
-		ax = np.append(self.points[::2], [self.points[0]])
-		ay = np.append(self.points[1::2], [self.points[1]])
-		tck, u = interpolate.splprep([x, y], s=0)
-		unew = np.arange(0, 1.01, 0.01)
-		out = interpolate.splev(unew, tck)
-		array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
+	ax = np.append(self.points[::2], [self.points[0]])
+	ay = np.append(self.points[1::2], [self.points[1]])
+	tck, u = interpolate.splprep([x, y], s=0)
+	unew = np.arange(0, 1.01, 0.01)
+	out = interpolate.splev(unew, tck)
+	array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
 		
         self.text_log.insert(tk.END, '%s\n' % array.__repr__())
         self.text_log.insert(tk.END, 'Running IDFT...\n')
