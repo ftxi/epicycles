@@ -9,13 +9,34 @@ from scipy.fftpack import fft, ifft
 from scipy import interpolate
 
 
+
+def IDFT(y):
+    '''
+    Since python on pi donesn't contain these by default
+    I had to write one on my own(maybe temprarily)
+    the DFT() is calculated by the epicycles
+    '''
+    N = len(y)
+    x = []
+    for k in range(N) :
+        x.append(0+0j)
+        for n in range(N) :
+            x[k] += e**(2.0j*pi*k*n/N)*y[n]
+        x[k] = x[k]/N
+    return x
+
+def near(n) :
+    if n - floor(n) < 0.5 :
+        return floor(n)
+    return floor(n) + 1
+
 class window :
     '''
     The program window.
     '''
     SIZE = 300
-    REFRESH = 40 #refresh every 50 miliseconds
-    MAX_TRACERS = 400
+    REFRESH = 30 #refresh every 50 miliseconds
+    MAX_TRACERS = 1000
     
     def __init__(self) :
         self.root = tk.Tk()
@@ -130,17 +151,24 @@ class window :
 
     def calculate(self, event) :
         self.text_log.insert(tk.END, 'Interpolating points...\n')
-		
-	ax = np.append(self.points[::2], [self.points[0]])
-	ay = np.append(self.points[1::2], [self.points[1]])
-	tck, u = interpolate.splprep([x, y], s=0)
-	unew = np.arange(0, 1.01, 0.01)
-	out = interpolate.splev(unew, tck)
-	array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
-		
+        
+        ax = np.append(self.points[::2], [self.points[0]])
+        ay = np.append(self.points[1::2], [self.points[1]])
+        tck, u = interpolate.splprep([ax, ay], s=0)
+        unew = np.arange(0, 1.001, 0.001)
+        out = interpolate.splev(unew, tck)
+        array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
+        
         self.text_log.insert(tk.END, '%s\n' % array.__repr__())
+        
+        '''
+        array = []
+        for i in range(len(self.points)/2) :
+            array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
+        '''
+        
+        self.text_log.insert(tk.END, '%s\n' % array)
         self.text_log.insert(tk.END, 'Running IDFT...\n')
-		
         inv = ifft(array)
         self.text_log.insert(tk.END, '%s\n' % inv)
         self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
@@ -153,8 +181,8 @@ class window :
             _inv.append((inv[i], i))
         #`_inv` is a tuple to hold the speed value while sorting
         for (z, n) in sorted(_inv, key=lambda _ : -abs(_[0])) :
-            if abs(z)*window.SIZE < 0.3 :
-                break       #filter the circles which are too small
+            #if abs(z)*window.SIZE < 0.01 :
+            #    break       #filter the circles which are too small
             self.r.append(abs(z)*window.SIZE)
             self.p.append(atan2(z.imag, z.real))
             self.n.append(n)
@@ -166,4 +194,8 @@ class window :
 
 if __name__ == '__main__' :
     window()
-
+    '''
+    a = [1, 2, 3, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7]
+    print a
+    print IDFT(a)
+    '''
