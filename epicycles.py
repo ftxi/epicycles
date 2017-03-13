@@ -6,7 +6,7 @@ import time
 from math import *      #mathematical stuff
 import numpy as np
 from scipy.fftpack import fft, ifft
-from scipy.interpolate import interp1d
+from scipy import interpolate
 
 
 
@@ -35,8 +35,8 @@ class window :
     The program window.
     '''
     SIZE = 300
-    REFRESH = 40 #refresh every 50 miliseconds
-    MAX_TRACERS = 400
+    REFRESH = 30 #refresh every 50 miliseconds
+    MAX_TRACERS = 1000
     
     def __init__(self) :
         self.root = tk.Tk()
@@ -150,13 +150,26 @@ class window :
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self, event) :
-        self.text_log.insert(tk.END, 'Calculating position...\n')
+        self.text_log.insert(tk.END, 'Interpolating points...\n')
+        
+        ax = np.append(self.points[::2], [self.points[0]])
+        ay = np.append(self.points[1::2], [self.points[1]])
+        tck, u = interpolate.splprep([ax, ay], s=0)
+        unew = np.arange(0, 1.001, 0.001)
+        out = interpolate.splev(unew, tck)
+        array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
+        
+        self.text_log.insert(tk.END, '%s\n' % array.__repr__())
+        
+        '''
         array = []
         for i in range(len(self.points)/2) :
             array.append((1.0*self.points[2*i])/window.SIZE+(1.0j*self.points[2*i+1])/window.SIZE)
+        '''
+        
         self.text_log.insert(tk.END, '%s\n' % array)
         self.text_log.insert(tk.END, 'Running IDFT...\n')
-        inv = IDFT(array)
+        inv = ifft(array)
         self.text_log.insert(tk.END, '%s\n' % inv)
         self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
         self.r = []
@@ -168,8 +181,8 @@ class window :
             _inv.append((inv[i], i))
         #`_inv` is a tuple to hold the speed value while sorting
         for (z, n) in sorted(_inv, key=lambda _ : -abs(_[0])) :
-            if abs(z)*window.SIZE < 0.3 :
-                break       #filter the circles which are too small
+            #if abs(z)*window.SIZE < 0.01 :
+            #    break       #filter the circles which are too small
             self.r.append(abs(z)*window.SIZE)
             self.p.append(atan2(z.imag, z.real))
             self.n.append(n)
