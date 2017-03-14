@@ -20,7 +20,7 @@ more features:
 **create delicated epicycles:**
 
 * [ ] use fourier series insted of discrete fourier transform
-* [ ] use both clockwise and counterclockwise rotations (suggested by [zzytyy](https://github.com/zzyztyy))
+* [x] use both clockwise and counterclockwise rotations (suggested by [zzytyy](https://github.com/zzyztyy))
 
 ### usage:
 You should install python, numpy and scipy in advance.
