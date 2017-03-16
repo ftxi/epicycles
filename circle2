@@ -2,33 +2,25 @@
 # -*- coding: utf-8 -*-
 #use fft2circle
 
-import tkinter as tk  # GUI#2.7中为Tkinter，请注意版本
+from __future__ import division
+
+try:
+    import Tkinter as tk  # GUI#2.7中为Tkinter，请注意版本
+except ImportError:
+    import tkinter as tk
+
 import time
 from math import *  # mathematical stuff
 import numpy as np
 from scipy.fftpack import fft, ifft
-from scipy.interpolate import interp1d
+#from scipy.interpolate import interp1d
 import fft2circle as fc
 
 
-def IDFT(y):#建议学习FFT并使用，一是IDFT效率较低，二是自己写的程序在精度和可靠性上不足
-    '''
-    Since python on pi donesn't contain these by default
-    I had to write one on my own(maybe temprarily)
-    the DFT() is calculated by the epicycles
-    '''
-    N = len(y)
-    x = []
-    for k in range(N):
-        x.append(0 + 0j)
-        for n in range(N):
-            x[k] += e ** (2.0j * pi * k * n / N) * y[n]
-        x[k] = x[k] / N
-    return x
 
 
 def IDFT2(points):#解出傅里叶系数，并进行必要调整
-    fx = IDFT(points)
+    fx = ifft(points)
     rot = [1]*len(fx)
     N = len(fx)
     for i in range(1, int((N+1)/2)):
@@ -41,12 +33,6 @@ def IDFT2(points):#解出傅里叶系数，并进行必要调整
         else:
             rot[i] = 1
     return fx, rot
-
-
-def near(n):#函数似乎没被调用？
-    if n - floor(n) < 0.5:
-        return floor(n)
-    return floor(n) + 1
 
 
 class window:#要画出精细的图形，需要更多的圆和更快的刷新速度，现在配色对比度太低，需要改变
@@ -182,7 +168,7 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
     def calculate(self, event):
         self.text_log.insert(tk.END, 'Calculating position...\n')
         array = []
-        array = inter(self.points,window.SIZE)
+        array = inter(self.points, window.SIZE)
         #for i in range(int(len(self.points) / 2)):
         #    array.append((1.0 * self.points[2 * i]) / window.SIZE + (1.0j * self.points[2 * i + 1]) / window.SIZE)
         self.text_log.insert(tk.END, '%s\n' % array)
@@ -240,8 +226,4 @@ def inter(point, Size):#对相邻采样点间采用线性插值,即插值点在�
 
 if __name__ == '__main__':
     window()
-    '''
-    a = [1, 2, 3, 3, 2, 1, 1, 2, 3, 4, 5, 6, 7]
-    print a
-    print IDFT(a)
-    '''
+
