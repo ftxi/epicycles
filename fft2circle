@@ -1,5 +1,6 @@
 from scipy.fftpack import fft
 from math import *
+import numpy as np
 
 
 class rotCircle(object):
@@ -12,12 +13,13 @@ class rotCircle(object):
 
 
 def get_circle_fft(x, y):
-    z = fft(x+1j*y)
+    z = fft(np.array(x)+1j*np.array(y))
     k = []
-    for i in range(int(len(z))):
-        r = abs(z[i]/50)
+    N = len(z)
+    for i in range(N):
+        r = abs(z[i]/N)
         p = atan2(z[i].imag, z[i].real)
-        if i > len(z)/2:
+        if i > N/2:
             rot = -1
             omg = len(z)-i
         else:
