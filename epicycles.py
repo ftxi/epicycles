@@ -5,7 +5,7 @@
 from __future__ import division
 
 try:
-    import Tkinter as tk  # GUI#2.7中为Tkinter，请注意版本
+    import Tkinter as tk
 except ImportError:
     import tkinter as tk
 
@@ -15,12 +15,12 @@ import numpy as np
 import fft2circle
 
 
-class window:#要画出精细的图形，需要更多的圆和更快的刷新速度，现在配色对比度太低，需要改变
+class window:
+    #要画出精细的图形，需要更多的圆和更快的刷新速度，现在配色对比度太低，需要改变
     #建议添加功能，采样前设置背景图片，方便勾勒轮廓
     #建议添加功能，画出连接圆心的连线，并使得圆和圆心连线都可选择隐藏
     #建议添加功能，重置窗口，清楚所有采样点和计算数据
     #建议添加功能，调整采样点次序，增删采样点
-    #建议文本框显示采样点及次序，不显示计算过程
     '''
     The program window.
     '''
@@ -29,7 +29,7 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
     MAX_TRACERS = 1000
     TRACER_SIZE = 2
     SPEED = 2.
-    
+
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('Epicycles --An Enternal...')
@@ -113,29 +113,23 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
             self.canvas.delete(self.lines_id)
 
     def draw(self):
-        #绘图似乎在以逆序运行，解出顺时针旋转实际以逆时针旋转，建议修改，并使得显示时经过点的次序与选择时相同
         self.canvas.after(window.REFRESH, self.draw)
         if self.drawing:
             return
         self.drawing = True
         if self.show_animation:
-            # print 'animation running at %f' % tmp
             N = len(self.n)
             tmp = (time.time() / N * 4 - floor(time.time() / N * 2 / pi) * 2.0 * pi) * window.SPEED
             x = 0.0
             y = 0.0
             for k in range(N):
                 rotation = self.v[k]#旋转方向参量
-                # print (self.epicycles_id[k], int(x-self.r[k]), int(y-self.r[k]), int(x+self.r[k]), int(y+self.r[k]))
                 self.canvas.coords(self.epicycles_id[k], int(x - self.r[k]) + window.SIZE,\
                                    int(y - self.r[k]) + window.SIZE, int(x + self.r[k]) + window.SIZE,\
                                    int(y + self.r[k]) + window.SIZE)
-                x = x + self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])#增加了系数
-                y = y + self.r[k] * sin(rotation*tmp * self.n[k] + self.p[k])#增加了系数
-            # test
+                x = x + self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])
+                y = y + self.r[k] * sin(rotation*tmp * self.n[k] + self.p[k])
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
-            # print '-'*50
-            # time.sleep(1)
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
             self.lines_id = self.canvas.create_line(list(map(lambda z: z+window.SIZE, self.points)), fill='gray70')
@@ -169,8 +163,7 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
             _inv.append((acircle[i].radius*(cos(acircle[i].p)+acircle[i].rot*1j*sin(acircle[i].p)), acircle[i].rot, acircle[i].omg))
         # `_inv` is a tuple to hold the speed value while sorting
         for k, (z, l, n) in enumerate(sorted(_inv, key=lambda _: -abs(_[0]))):
-            #sort使圆按大小排序，而非频率排序，会削弱物理内涵，不建议使用
-            if abs(z) * window.SIZE < 0.3:#去掉半径较小的圆，可以提高效率，但前面排序更改后存在bug，需要改写
+            if abs(z) * window.SIZE < 0.3:
                 break  # filter the circles which are too small
             self.r.append(abs(z) * window.SIZE)
             self.p.append(atan2(l*z.imag, z.real))#多了参数l
@@ -181,19 +174,20 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
         self.text_log.insert(tk.END, 'Calulation done.\n\n\n\n')
         self.button_animation.configure(state=tk.NORMAL)
 
-    def _inter(self):#对相邻采样点间采用线性插值,即插值点在一条直线上
+    def _inter(self) :
+        #对相邻采样点间采用线性插值,即插值点在一条直线上
         #建议采用r—theta插值模式，并把连接点之间的直线转为实际绘图会出现的曲线
         #建议在末点和首点间插值使曲线闭合，以避免不合适的误差
         lbin = 0.1#插值间隔
         new_point = []
         front = (self.points[0]+self.points[1]*1j)/window.SIZE
         behind = 0+0j
-        for i in range(1, int(len(self.points)/2)):
-            if i != 1:
+        for i in range(1, int(len(self.points)/2)) :
+            if i != 1 :
                 front = behind
             behind = (self.points[2*i]+self.points[2*i+1]*1j)/window.SIZE
             lenth = abs(front-behind)
-            if lenth > lbin:
+            if lenth > lbin :
                 #new = list(np.interp(range(int(lenth/lbin)), [0, lenth/lbin], [front, behind]))
                 newreal = list(np.interp(range(int(lenth/lbin)), [0.0, lenth/lbin], [front.real, behind.real]))
                 newimag = list(np.interp(range(int(lenth/lbin)), [0.0, lenth/lbin], [front.imag, behind.imag]))
@@ -208,4 +202,3 @@ class window:#要画出精细的图形，需要更多的圆和更快的刷新速
 
 if __name__ == '__main__':
     window()
-
