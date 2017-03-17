@@ -9,6 +9,6 @@
 *\#
 
 # pyinstaller build
-build\*
-dist\*
+build\
+dist\
 *.spec
