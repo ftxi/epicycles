@@ -1,5 +1,14 @@
 
+# python
 *.ipynb_checkpoints
 *.pyc
 *.pyo
+
+# tempfile
 *~
+*\#
+
+# pyinstaller build
+build\*
+dist\*
+*.spec
