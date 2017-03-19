@@ -20,7 +20,7 @@ import time
 from math import sin, cos, floor, atan2, pi
 import numpy as np
 import fft2circle
-#from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d
 
 
 class window:
@@ -243,11 +243,12 @@ class window:
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self):
-        self.points.append(self.points[0])
-        self.points.append(self.points[1])
-        array = self._inter()
-        self.points.pop()
-        self.points.pop()
+        _z = (np.append(self.points[::2], [self.points[0]]) + \
+                    np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
+        _t = np.arange(len(_z))
+        f = interp1d(_t, _z)
+        t = np.linspace(0, len(_z)-1, 1024)       #1024 can be any positive number
+        array = f(t)
         
         map(lambda x : self.canvas.delete(x), self.epicycles_id)
         self.epicycles_id = []
@@ -262,8 +263,10 @@ class window:
         # the epcycle data
         _inv = []
         self.max_through_lines = len(acircle)
+        
         for i in range(len(acircle)):#设置i的取值范围，可以实现滤波功能，可选择添加交互
             _inv.append((acircle[i].radius*(cos(acircle[i].p)+acircle[i].rot*1j*sin(acircle[i].p)), acircle[i].rot, acircle[i].omg))
+        
         for k, (z, l, n) in enumerate(sorted(_inv, key=lambda _: -abs(_[0]))):
             if abs(z) * window.SIZE < 0.3:
                 break  # filter the circles which are too small
@@ -276,37 +279,11 @@ class window:
                 self.through_lines_id.append(self.canvas.create_line(0, 0, 0, 0, fill='blue'))
             elif k > 2 and self.r[-2] >= 5. :
                 self.max_through_lines = k
-            if l == 1 :
-                self.listbox_epicycles.insert(tk.END,
-                                'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d counterclockwise' % (k, self.r[-1], self.p[-1], n))
-            elif l == -1 :
-                self.listbox_epicycles.insert(tk.END,
-                                'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d clockwise' % (k, self.r[-1], self.p[-1], n))
+            self.listbox_epicycles.insert(tk.END,
+                            'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d %sclockwise' 
+                            % (k, self.r[-1], self.p[-1], n, l==1 and 'counter' or ''))
         
         self.button_animation.configure(state=tk.NORMAL)
-
-    def _inter(self) :
-        #对相邻采样点间采用线性插值,即插值点在一条直线上
-        #建议采用r—theta插值模式，并把连接点之间的直线转为实际绘图会出现的曲线
-        new_point = []
-        front = (self.points[0]+self.points[1]*1j)/window.SIZE
-        behind = 0+0j
-        for i in range(1, int(len(self.points)/2)) :
-            if i != 1 :
-                front = behind
-            behind = (self.points[2*i]+self.points[2*i+1]*1j)/window.SIZE
-            lenth = abs(front-behind)
-            if lenth > window.L_BIN :
-                newreal = list(np.interp(range(int(lenth/window.L_BIN)), [0.0, lenth/window.L_BIN], [front.real, behind.real]))
-                newimag = list(np.interp(range(int(lenth/window.L_BIN)), [0.0, lenth/window.L_BIN], [front.imag, behind.imag]))
-                new = []
-                for i in range(len(newreal)) :
-                    new.append(newreal[i] + newimag[i] * 1.0j)
-            else:
-                new = [front]
-            new_point = new_point + new
-        new_point.append(behind)
-        return new_point
 
 if __name__ == '__main__':
     window()
