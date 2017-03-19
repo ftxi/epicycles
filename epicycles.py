@@ -13,13 +13,14 @@ except ImportError:         #python 3
     from tkinter import filedialog
     import tkinter.messagebox as msgbox
 
-#import ttk
+import ttk
 from PIL import ImageTk, Image
 
 import time
 from math import sin, cos, floor, atan2, pi
 import numpy as np
 import fft2circle
+#from scipy.interpolate import interp1d
 
 
 class window:
@@ -55,7 +56,8 @@ class window:
         self.show_lines = True
         self.show_points = True
         self.show_animation = False
-        self.lines_id = self.canvas.create_line(0, 0, 0, 0)
+        self.lines_id = self.canvas.create_polygon(0, 0, 0, 0, fill='', outline='gray70')
+        self.through_lines_id = []
         self.points_id = []
         self.epicycles_id = []
         self.tracers_id = list(map(lambda x: 0, range(window.MAX_TRACERS)))
@@ -77,13 +79,15 @@ class window:
                                           state=tk.DISABLED, command=self.on_toggle_animation)
         self.button_animation.pack(side=tk.TOP, fill=tk.X)
         
-        self.frame_logs = tk.Frame(self.root, width=100)
+        self.notebook = ttk.Notebook(self.root)
+        
+        self.frame_logs = tk.Frame(width=100)
         #self.text_log = tk.Text(self.frame_logs, height=20, width=40)
-        self.listbox = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
-        self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.listbox.yview)
-        self.listbox.configure(yscrollcommand=self.scroll_log.set,  font=('Sans', 10))
-        self.listbox.pack(side=tk.LEFT, fill=tk.X)
-        self.listbox_flag = 0 #0 stands for points
+        self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
+        #self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.listbox_points.yview)
+        #self.listbox_points.configure(yscrollcommand=self.scroll_log.set,  font=('Sans', 10))
+        self.listbox_points.pack()
+        self.listbox_points_flag = 0 #0 stands for points
         '''
         self.label_n = tk.Label(self.frame_logs, text='-')
         self.label_n.pack(side=tk.BOTTOM)
@@ -92,8 +96,14 @@ class window:
         '''
         #self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans', 6))
         #self.text_log.pack(side=tk.LEFT, fill=tk.X)
-        self.scroll_log.pack(side=tk.LEFT, fill=tk.Y)
-        self.frame_logs.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
+        self.notebook.add(self.frame_logs, text='points')
+        
+        self.frame_epicycles = tk.Frame(width=100)
+        self.listbox_epicycles = tk.Listbox(self.frame_epicycles, activestyle='dotbox', height=20)
+        self.listbox_epicycles.pack()
+        
+        self.notebook.add(self.frame_epicycles, text='epicycles')
+        self.notebook.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
         
         self.button_lines = tk.Button(self.frame_buttons,
                                       text='toggle lines display', command=self.on_lines_display)
@@ -122,41 +132,41 @@ class window:
                 self.canvas.itemconfig(point_id, outline='orange')
         else:
             for point_id in self.points_id:
-                self.canvas.itemconfig(point_id, outline='antiqueWhite')
+                self.canvas.itemconfig(point_id, outline='')
 
     def on_toggle_animation(self):
         self.show_animation = not self.show_animation
 
-    def refresh_listbox(self) :
-        self.listbox.delete(0, tk.END)
-        if self.listbox_flag == 0 :
+    def refresh_listbox_points(self) :
+        self.listbox_points.delete(0, tk.END)
+        if self.listbox_points_flag == 0 :
             for n in range(len(self.points)//2):
-                self.listbox.insert('point[%d] \tat (%3d, %3d)'
+                self.listbox_points.insert('point[%d] at (%3d, %3d)'
                                     % (n, self.points[2*n], self.points[2*n+1]))
             
-        elif self.listbox_flag == 1 :    
+        elif self.listbox_points_flag == 1 :    
             pass
         
     def on_open_image(self) :
-        self.img_path = filedialog.askopenfilename(
-                #filetypes=[('all files', '.*')],
-                parent=self.root,
-                title='select background image to open')
-        #print(self.img_path)
         try :
+            self.img_path = filedialog.askopenfilename(
+                        parent=self.root,
+                        title='select background image to open')
             with Image.open(self.img_path) as pilimg :
-                #print(pilimg)
                 img = ImageTk.PhotoImage(pilimg)
                 self._label = tk.Label(image=img)
-                self._label.image = img
+                self._label.image = img     #hack a refrance to make python2.7 happy
                 self._image = self.canvas.create_image(100, 100, image=img)
                 self.button_hide_image.config(state=tk.NORMAL)
-        except IOError:
+        except IOError :                    #exception when PIL cannot recognize the image
             msgbox.showerror('Invalid image file', 'Please select a photo,\n'
-                             'such as example.jpg, example.png', icon='warning')
+                             'e.g. example.tiff, juli.jpg, money.png', icon='warning')
+        except AttributeError :             #exception when cancal open a file
+            pass
         
     def on_hide_image(self) :
         self.canvas.delete(self._image)
+        del self._label
         self.button_hide_image.config(state=tk.DISABLED)
     
     def on_about(self) :
@@ -175,16 +185,23 @@ class window:
         self.show_animation = tmp
         
     def remove_item(self) :
-        if self.listbox_flag == 0 :
+        if self.listbox_points_flag == 0 :
             pass
     
     def onclick(self, me):
         self.points.append(me.x - window.SIZE)
         self.points.append(me.y - window.SIZE)
+        if len(self.points) > 2:
+            self.canvas.delete(self.points_id.pop())
+            self.points_id.append(
+                self.canvas.create_oval(self.points[-4] - 1 + window.SIZE,
+                                        self.points[-3] - 1 + window.SIZE,
+                                        self.points[-4] + 1 + window.SIZE,
+                                        self.points[-3] + 1 + window.SIZE, tag='p', outline='orange'))
         self.points_id.append(
-            self.canvas.create_oval(me.x - 1, me.y - 1, me.x + 1, me.y + 1, tag='p', outline='orange'))
-        if self.listbox_flag == 0 :
-            self.listbox.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
+            self.canvas.create_oval(me.x - 1, me.y - 1, me.x + 1, me.y + 1, tag='p', fill='red', outline='red'))
+        if self.listbox_points_flag == 0 :
+            self.listbox_points.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
                                  % (len(self.points)//2, me.x - window.SIZE, me.y - window.SIZE))
 
     def undo_click(self, me):
@@ -192,7 +209,7 @@ class window:
             self.canvas.delete(self.points_id.pop())
             self.points.pop()
             self.points.pop()
-            self.listbox.delete(tk.END)
+            self.listbox_points.delete(tk.END)
         if len(self.points) == 2:
             self.canvas.delete(self.lines_id)
 
@@ -204,19 +221,25 @@ class window:
         if self.show_animation:
             N = len(self.n)
             tmp = (time.time() / N * 4 - floor(time.time() / N * 2 / pi) * 2.0 * pi) * window.SPEED
-            x = 0.0
-            y = 0.0
+            x, y = 0.0, 0.0
+            _x, _y = 0.0, 0.0
             for k in range(N):
-                rotation = self.v[k]#旋转方向参量
+                rotation = self.v[k]
+                _x += self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])
+                _y += self.r[k] * sin(rotation*tmp * self.n[k] + self.p[k])
                 self.canvas.coords(self.epicycles_id[k], int(x - self.r[k]) + window.SIZE,\
                                    int(y - self.r[k]) + window.SIZE, int(x + self.r[k]) + window.SIZE,\
                                    int(y + self.r[k]) + window.SIZE)
-                x = x + self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])
-                y = y + self.r[k] * sin(rotation*tmp * self.n[k] + self.p[k])
+                if k < self.max_through_lines :
+                    self.canvas.coords(self.through_lines_id[k], int(x) + window.SIZE,\
+                                   int(y) + window.SIZE, int(_x) + window.SIZE,\
+                                   int(_y) + window.SIZE)
+                x, y = _x, _y
+                
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
-            self.lines_id = self.canvas.create_line(list(map(lambda z: z+window.SIZE, self.points)), fill='gray70')
+            self.lines_id = self.canvas.create_polygon(list(map(lambda z: z+window.SIZE, self.points)), fill='', outline='gray70')
         self.drawing = False
 
     def upload_tracers(self, x, y):
@@ -227,8 +250,17 @@ class window:
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self):
-        array = []
+        self.points.append(self.points[0])
+        self.points.append(self.points[1])
         array = self._inter()
+        self.points.pop()
+        self.points.pop()
+        
+        map(lambda x : self.canvas.delete(x), self.epicycles_id)
+        self.epicycles_id = []
+        map(lambda x : self.canvas.delete(x), self.through_lines_id)
+        self.through_lines_id = []
+        
         acircle = fft2circle.get_circle_fft(np.real(array), np.imag(array))
         self.r = []
         self.p = []
@@ -236,6 +268,7 @@ class window:
         self.v = []
         # the epcycle data
         _inv = []
+        self.max_through_lines = len(acircle)
         for i in range(len(acircle)):#设置i的取值范围，可以实现滤波功能，可选择添加交互
             _inv.append((acircle[i].radius*(cos(acircle[i].p)+acircle[i].rot*1j*sin(acircle[i].p)), acircle[i].rot, acircle[i].omg))
         for k, (z, l, n) in enumerate(sorted(_inv, key=lambda _: -abs(_[0]))):
@@ -246,6 +279,17 @@ class window:
             self.n.append(n)
             self.v.append(l)
             self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
+            if abs(z) * window.SIZE < 5.:
+                self.through_lines_id.append(self.canvas.create_line(0, 0, 0, 0, fill='blue'))
+            elif k > 2 and self.r[-2] >= 5. :
+                self.max_through_lines = k
+            if l == 1 :
+                self.listbox_epicycles.insert(tk.END,
+                                'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d counterclockwise' % (k, self.r[-1], self.p[-1], n))
+            elif l == -1 :
+                self.listbox_epicycles.insert(tk.END,
+                                'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d clockwise' % (k, self.r[-1], self.p[-1], n))
+        
         self.button_animation.configure(state=tk.NORMAL)
 
     def _inter(self) :
