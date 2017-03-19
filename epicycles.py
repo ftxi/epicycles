@@ -24,11 +24,6 @@ import fft2circle
 
 
 class window:
-    #要画出精细的图形，需要更多的圆和更快的刷新速度，现在配色对比度太低，需要改变
-    #建议添加功能，采样前设置背景图片，方便勾勒轮廓
-    #建议添加功能，画出连接圆心的连线，并使得圆和圆心连线都可选择隐藏
-    #建议添加功能，重置窗口，清楚所有采样点和计算数据
-    #建议添加功能，调整采样点次序，增删采样点
     '''
     The program window.
     '''
@@ -82,10 +77,7 @@ class window:
         self.notebook = ttk.Notebook(self.root)
         
         self.frame_logs = tk.Frame(width=100)
-        #self.text_log = tk.Text(self.frame_logs, height=20, width=40)
         self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
-        #self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.listbox_points.yview)
-        #self.listbox_points.configure(yscrollcommand=self.scroll_log.set,  font=('Sans', 10))
         self.listbox_points.pack()
         self.listbox_points_flag = 0 #0 stands for points
         '''
@@ -94,8 +86,6 @@ class window:
         self.button_remove = tk.Button(self.frame_logs, text='remove', command=self.remove_item)
         self.button_remove.pack(side=tk.BOTTOM)
         '''
-        #self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans', 6))
-        #self.text_log.pack(side=tk.LEFT, fill=tk.X)
         self.notebook.add(self.frame_logs, text='points')
         
         self.frame_epicycles = tk.Frame(width=100)
@@ -152,11 +142,14 @@ class window:
             self.img_path = filedialog.askopenfilename(
                         parent=self.root,
                         title='select background image to open')
-            with Image.open(self.img_path) as pilimg :
-                img = ImageTk.PhotoImage(pilimg)
-                self._label = tk.Label(image=img)
-                self._label.image = img     #hack a refrance to make python2.7 happy
-                self._image = self.canvas.create_image(100, 100, image=img)
+            with Image.open(self.img_path) as originimg :
+                height, width = originimg.size
+                size = min(height, width)
+                img = originimg.crop((0, 0, size, size)).resize((window.SIZE*2, window.SIZE*2))
+                tkimg = ImageTk.PhotoImage(img)
+                self._label = tk.Label(image=tkimg)
+                self._label.image = tkimg     #hack a refrance to make python2.7 happy                
+                self._image = self.canvas.create_image(window.SIZE, window.SIZE, image=tkimg)
                 self.button_hide_image.config(state=tk.NORMAL)
         except IOError :                    #exception when PIL cannot recognize the image
             msgbox.showerror('Invalid image file', 'Please select a photo,\n'
@@ -295,7 +288,6 @@ class window:
     def _inter(self) :
         #对相邻采样点间采用线性插值,即插值点在一条直线上
         #建议采用r—theta插值模式，并把连接点之间的直线转为实际绘图会出现的曲线
-        #建议在末点和首点间插值使曲线闭合，以避免不合适的误差
         new_point = []
         front = (self.points[0]+self.points[1]*1j)/window.SIZE
         behind = 0+0j
