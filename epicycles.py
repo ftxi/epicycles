@@ -4,10 +4,17 @@
 
 from __future__ import division
 
-try:
+try:                        #python 2.7
     import Tkinter as tk
-except ImportError:
+    import tkFileDialog as filedialog
+    import tkMessageBox as msgbox
+except ImportError:         #python 3
     import tkinter as tk
+    from tkinter import filedialog
+    import tkinter.messagebox as msgbox
+
+#import ttk
+from PIL import ImageTk, Image
 
 import time
 from math import sin, cos, floor, atan2, pi
@@ -29,6 +36,7 @@ class window:
     MAX_TRACERS = 1000
     TRACER_SIZE = 2
     SPEED = 2.
+    L_BIN = 0.1  #插值间隔
 
     def __init__(self):
         self.root = tk.Tk()
@@ -54,26 +62,43 @@ class window:
         self.tn = 0
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
-        self.button_calculate = tk.Button(self.frame_buttons, text='calculate')
-        self.button_calculate.bind('<ButtonRelease-1>', self.calculate)
+        self.button_image = tk.Button(self.frame_buttons,
+                                          text='open an image', command=self.on_open_image)
+        self.button_image.pack(side=tk.TOP, fill=tk.X)
+        self.button_calculate = tk.Button(self.frame_buttons,
+                                          text='calculate', command=self.calculate)
         self.button_calculate.pack(side=tk.TOP, fill=tk.X)
-        self.button_animation = tk.Button(self.frame_buttons, text='show animation', state=tk.DISABLED)
-        self.button_animation.bind('<ButtonRelease-1>', self.on_toggle_animation)
+        self.button_animation = tk.Button(self.frame_buttons,
+                                          text='show animation',
+                                          state=tk.DISABLED, command=self.on_toggle_animation)
         self.button_animation.pack(side=tk.TOP, fill=tk.X)
+        
         self.frame_logs = tk.Frame(self.root, width=100)
-        self.text_log = tk.Text(self.frame_logs, height=20, width=40)
-        self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.text_log.yview)
-        self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans', 6))
-        self.text_log.pack(side=tk.LEFT, fill=tk.X)
-        self.scroll_log.pack(side=tk.RIGHT, fill=tk.Y)
+        #self.text_log = tk.Text(self.frame_logs, height=20, width=40)
+        self.listbox = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
+        self.scroll_log = tk.Scrollbar(self.frame_logs, command=self.listbox.yview)
+        self.listbox.configure(yscrollcommand=self.scroll_log.set,  font=('Sans', 10))
+        self.listbox.pack(side=tk.LEFT, fill=tk.X)
+        self.listbox_flag = 0 #0 stands for points
+        '''
+        self.label_n = tk.Label(self.frame_logs, text='-')
+        self.label_n.pack(side=tk.BOTTOM)
+        self.button_remove = tk.Button(self.frame_logs, text='remove', command=self.remove_item)
+        self.button_remove.pack(side=tk.BOTTOM)
+        '''
+        #self.text_log.configure(yscrollcommand=self.scroll_log.set, font=('Sans', 6))
+        #self.text_log.pack(side=tk.LEFT, fill=tk.X)
+        self.scroll_log.pack(side=tk.LEFT, fill=tk.Y)
         self.frame_logs.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
-        self.button_lines = tk.Button(self.frame_buttons, text='toggle lines display')
-        self.button_lines.bind('<ButtonRelease-1>', self.on_lines_display)
+        
+        self.button_lines = tk.Button(self.frame_buttons,
+                                      text='toggle lines display', command=self.on_lines_display)
         self.button_lines.pack(side=tk.TOP, fill=tk.X)
-        self.button_points = tk.Button(self.frame_buttons, text='toggle points display')
-        self.button_points.bind('<ButtonRelease-1>', self.on_points_display)
+        self.button_points = tk.Button(self.frame_buttons,
+                                      text='toggle points display', command=self.on_points_display)
         self.button_points.pack(side=tk.TOP, fill=tk.X)
-        self.button_about = tk.Button(self.frame_buttons, text='About Epicycles & sclereid')
+        self.button_about = tk.Button(self.frame_buttons,
+                                      text='About Epicycles & sclereid', command=self.on_about)
         self.button_about.pack(side=tk.TOP, fill=tk.X)
         self.frame_buttons.pack(side=tk.RIGHT, expand=tk.YES, fill=tk.Y)
         # buttons
@@ -81,12 +106,12 @@ class window:
         self.draw()
         self.root.mainloop()
 
-    def on_lines_display(self, event):
+    def on_lines_display(self):
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
         self.show_lines = not self.show_lines
 
-    def on_points_display(self, event):
+    def on_points_display(self):
         self.show_points = not self.show_points
         if self.show_points:
             for point_id in self.points_id:
@@ -95,20 +120,71 @@ class window:
             for point_id in self.points_id:
                 self.canvas.itemconfig(point_id, outline='antiqueWhite')
 
-    def on_toggle_animation(self, event):
+    def on_toggle_animation(self):
         self.show_animation = not self.show_animation
 
+    def refresh_listbox(self) :
+        self.listbox.delete(0, tk.END)
+        if self.listbox_flag == 0 :
+            for n in range(len(self.points)//2):
+                self.listbox.insert('point[%d] \tat (%3d, %3d)'
+                                    % (n, self.points[2*n], self.points[2*n+1]))
+            
+        elif self.listbox_flag == 1 :    
+            pass
+        
+    def on_open_image(self) :
+        self.img_path = filedialog.askopenfilename(
+                #filetypes=[('all files', '.*')],
+                parent=self.root,
+                title='select background image to open')
+        #print(self.img_path)
+        try :
+            with Image.open(self.img_path) as pilimg :
+                #print(pilimg)
+                img = ImageTk.PhotoImage(pilimg)
+                self._label = tk.Label(image=img)
+                self._label.image = img
+                self.canvas.create_image(100, 100, image=img)
+        except IOError:
+            msgbox.showerror('Invalid image file', 'Please select a photo,\n'
+                             'such as example.jpg, example.png', icon='warning')
+        
+    
+    def on_about(self) :
+        tmp = self.show_animation
+        self.show_animation = False
+        msgbox.showinfo('Epicycles', 
+                        'A small program to display epicycles with given image.\n'
+                        '\n'
+                        'Authors:\n' 
+                        'sclereid: https://github.com/sclereid\n'
+                        'zyyztyy: https://github.com/zzyztyy\n'
+                        '\n'
+                        'Source:  https://github.com/sclereid/epicycles\n'
+                        '\n'
+                        'Note:   This is a MIT licensed software.\n')
+        self.show_animation = tmp
+        
+    def remove_item(self) :
+        if self.listbox_flag == 0 :
+            pass
+    
     def onclick(self, me):
         self.points.append(me.x - window.SIZE)
         self.points.append(me.y - window.SIZE)
         self.points_id.append(
             self.canvas.create_oval(me.x - 1, me.y - 1, me.x + 1, me.y + 1, tag='p', outline='orange'))
-        self.text_log.insert(tk.END, 'mouse clicking (%d, %d)\n' % (me.x - window.SIZE, me.y - window.SIZE))
+        if self.listbox_flag == 0 :
+            self.listbox.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
+                                 % (len(self.points)//2, me.x - window.SIZE, me.y - window.SIZE))
 
     def undo_click(self, me):
         if len(self.points) > 0:
             self.canvas.delete(self.points_id.pop())
-            self.text_log.insert(tk.END, 'removed point at (%d, %d)\n' % (self.points.pop(), self.points.pop()))
+            self.points.pop()
+            self.points.pop()
+            self.listbox.delete(tk.END)
         if len(self.points) == 2:
             self.canvas.delete(self.lines_id)
 
@@ -142,43 +218,32 @@ class window:
             self.canvas.coords(self.tracers_id[self.tn], x - window.TRACER_SIZE, y - window.TRACER_SIZE, x + window.TRACER_SIZE, y + window.TRACER_SIZE)
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
-    def calculate(self, event):
-        self.text_log.insert(tk.END, 'Calculating position...\n')
+    def calculate(self):
         array = []
         array = self._inter()
-        self.text_log.insert(tk.END, '%s\n' % self.points)
-        self.text_log.insert(tk.END, 'Running IDFT...\n')
         acircle = fft2circle.get_circle_fft(np.real(array), np.imag(array))
-        print(type(acircle))
-        inv = acircle
-        #inv, inrot = IDFT2(array)#inrot表示旋转方向的list
-        self.text_log.insert(tk.END, 'Transforming&Looking for fine order...\n')
         self.r = []
         self.p = []
         self.n = []
         self.v = []
         # the epcycle data
         _inv = []
-        for i in range(len(inv)):#设置i的取值范围，可以实现滤波功能，可选择添加交互
+        for i in range(len(acircle)):#设置i的取值范围，可以实现滤波功能，可选择添加交互
             _inv.append((acircle[i].radius*(cos(acircle[i].p)+acircle[i].rot*1j*sin(acircle[i].p)), acircle[i].rot, acircle[i].omg))
-        # `_inv` is a tuple to hold the speed value while sorting
         for k, (z, l, n) in enumerate(sorted(_inv, key=lambda _: -abs(_[0]))):
             if abs(z) * window.SIZE < 0.3:
                 break  # filter the circles which are too small
             self.r.append(abs(z) * window.SIZE)
-            self.p.append(atan2(l*z.imag, z.real))#多了参数l
+            self.p.append(atan2(l*z.imag, z.real))
             self.n.append(n)
-            self.v.append(l)#新增参量，表示旋转方向
+            self.v.append(l)
             self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
-            self.text_log.insert(tk.END, 'circle %3d: r = %.4f, p = %3.4f, s = %d\n' % (k, self.r[-1], self.p[-1], n))
-        self.text_log.insert(tk.END, 'Calulation done.\n\n\n\n')
         self.button_animation.configure(state=tk.NORMAL)
 
     def _inter(self) :
         #对相邻采样点间采用线性插值,即插值点在一条直线上
         #建议采用r—theta插值模式，并把连接点之间的直线转为实际绘图会出现的曲线
         #建议在末点和首点间插值使曲线闭合，以避免不合适的误差
-        lbin = 0.1#插值间隔
         new_point = []
         front = (self.points[0]+self.points[1]*1j)/window.SIZE
         behind = 0+0j
@@ -187,10 +252,9 @@ class window:
                 front = behind
             behind = (self.points[2*i]+self.points[2*i+1]*1j)/window.SIZE
             lenth = abs(front-behind)
-            if lenth > lbin :
-                #new = list(np.interp(range(int(lenth/lbin)), [0, lenth/lbin], [front, behind]))
-                newreal = list(np.interp(range(int(lenth/lbin)), [0.0, lenth/lbin], [front.real, behind.real]))
-                newimag = list(np.interp(range(int(lenth/lbin)), [0.0, lenth/lbin], [front.imag, behind.imag]))
+            if lenth > window.L_BIN :
+                newreal = list(np.interp(range(int(lenth/window.L_BIN)), [0.0, lenth/window.L_BIN], [front.real, behind.real]))
+                newimag = list(np.interp(range(int(lenth/window.L_BIN)), [0.0, lenth/window.L_BIN], [front.imag, behind.imag]))
                 new = []
                 for i in range(len(newreal)) :
                     new.append(newreal[i] + newimag[i] * 1.0j)

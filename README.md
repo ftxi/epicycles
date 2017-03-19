@@ -21,7 +21,7 @@ more features:
 
 **better interaction with users:**
 
-* [ ] allow using a background picture
+* [x] allow using a background picture
 * [ ] more user defined variables
 
 **create delicate epicycles:**
@@ -32,6 +32,6 @@ more features:
 ### usage:
 You should install [python](https://www.python.org), [numpy](http://www.numpy.org) and [scipy](http://www.scipy.org) in advance.
 
-Run the file in python. Should be simple enough.
+Download from the releases or run the source file in python. Should be simple enough.
 
 Have fun!
