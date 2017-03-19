@@ -1,16 +1,15 @@
 
 # python
 *.ipynb_checkpoints
-*.pyc
-*.pyo
-*.pyz
+*.py[cod]
 *.egg
+*.egg-info
 
 # tempfile
 *~
 *\#
 
 # pyinstaller build
-build\
-dist\
+build
+dist
 *.spec

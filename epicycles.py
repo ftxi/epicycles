@@ -64,7 +64,11 @@ class window:
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_image = tk.Button(self.frame_buttons,
                                           text='open an image', command=self.on_open_image)
+        self.button_hide_image = tk.Button(self.frame_buttons,
+                                           state=tk.DISABLED,
+                                           text='hide image', command=self.on_hide_image)
         self.button_image.pack(side=tk.TOP, fill=tk.X)
+        self.button_hide_image.pack(side=tk.TOP, fill=tk.X)
         self.button_calculate = tk.Button(self.frame_buttons,
                                           text='calculate', command=self.calculate)
         self.button_calculate.pack(side=tk.TOP, fill=tk.X)
@@ -145,11 +149,15 @@ class window:
                 img = ImageTk.PhotoImage(pilimg)
                 self._label = tk.Label(image=img)
                 self._label.image = img
-                self.canvas.create_image(100, 100, image=img)
+                self._image = self.canvas.create_image(100, 100, image=img)
+                self.button_hide_image.config(state=tk.NORMAL)
         except IOError:
             msgbox.showerror('Invalid image file', 'Please select a photo,\n'
                              'such as example.jpg, example.png', icon='warning')
         
+    def on_hide_image(self) :
+        self.canvas.delete(self._image)
+        self.button_hide_image.config(state=tk.DISABLED)
     
     def on_about(self) :
         tmp = self.show_animation
