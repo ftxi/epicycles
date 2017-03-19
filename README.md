@@ -10,7 +10,7 @@ About *deferent and epicycle* : <https://en.wikipedia.org/wiki/Deferent_and_epic
 
 ### snapshot:
 
-![snapshot](snapshot.png)
+![snapshot](resource/snapshot.png)
 
 ### status:
 
