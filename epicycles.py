@@ -17,7 +17,7 @@ import ttk
 from PIL import ImageTk, Image
 
 import time
-from math import sin, cos, floor, atan2, pi
+from math import sin, cos, floor, pi
 import numpy as np
 import fft2circle
 from scipy.interpolate import interp1d
@@ -32,7 +32,8 @@ class window:
     MAX_TRACERS = 1000
     TRACER_SIZE = 2
     SPEED = 2.
-    L_BIN = 0.1  #插值间隔
+    L_BIN = 1024
+    LINED_CIRCLE_MIN = 5.
 
     def __init__(self):
         self.root = tk.Tk()
@@ -55,10 +56,15 @@ class window:
         self.through_lines_id = []
         self.points_id = []
         self.epicycles_id = []
-        self.tracers_id = list(map(lambda x: 0, range(window.MAX_TRACERS)))
+        self.tracers_id = [0] * window.MAX_TRACERS
         self.tn = 0
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
+        self.sorted_flag = tk.IntVar()
+        self.checkbutton_sorted = tk.Checkbutton(self.frame_buttons, text='sort by radius',
+                                      variable=self.sorted_flag, onvalue=1, offvalue=0)
+        self.checkbutton_sorted.select()
+        self.checkbutton_sorted.pack(side=tk.TOP, fill=tk.X)
         self.button_image = tk.Button(self.frame_buttons,
                                           text='open an image', command=self.on_open_image)
         self.button_hide_image = tk.Button(self.frame_buttons,
@@ -80,12 +86,6 @@ class window:
         self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
         self.listbox_points.pack()
         self.listbox_points_flag = 0 #0 stands for points
-        '''
-        self.label_n = tk.Label(self.frame_logs, text='-')
-        self.label_n.pack(side=tk.BOTTOM)
-        self.button_remove = tk.Button(self.frame_logs, text='remove', command=self.remove_item)
-        self.button_remove.pack(side=tk.BOTTOM)
-        '''
         self.notebook.add(self.frame_logs, text='points')
         
         self.frame_epicycles = tk.Frame(width=100)
@@ -105,7 +105,6 @@ class window:
                                       text='About Epicycles & sclereid', command=self.on_about)
         self.button_about.pack(side=tk.TOP, fill=tk.X)
         self.frame_buttons.pack(side=tk.RIGHT, expand=tk.YES, fill=tk.Y)
-        # buttons
         self.drawing = False
         self.draw()
         self.root.mainloop()
@@ -216,6 +215,7 @@ class window:
             tmp = (time.time() / N * 4 - floor(time.time() / N * 2 / pi) * 2.0 * pi) * window.SPEED
             x, y = 0.0, 0.0
             _x, _y = 0.0, 0.0
+            u = 0
             for k in range(N):
                 rotation = self.v[k]
                 _x += self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])
@@ -223,10 +223,11 @@ class window:
                 self.canvas.coords(self.epicycles_id[k], int(x - self.r[k]) + window.SIZE,\
                                    int(y - self.r[k]) + window.SIZE, int(x + self.r[k]) + window.SIZE,\
                                    int(y + self.r[k]) + window.SIZE)
-                if k < self.max_through_lines :
-                    self.canvas.coords(self.through_lines_id[k], int(x) + window.SIZE,\
+                if self.r[k] > window.LINED_CIRCLE_MIN:
+                    self.canvas.coords(self.through_lines_id[u], int(x) + window.SIZE,\
                                    int(y) + window.SIZE, int(_x) + window.SIZE,\
                                    int(_y) + window.SIZE)
+                    u += 1
                 x, y = _x, _y
                 
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
@@ -243,46 +244,44 @@ class window:
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self):
+        if self.points < 4 :
+            return
         _z = (np.append(self.points[::2], [self.points[0]]) + \
                     np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
         _t = np.arange(len(_z))
         f = interp1d(_t, _z)
-        t = np.linspace(0, len(_z)-1, 1024)       #1024 can be any positive number
+        t = np.linspace(0, len(_z)-1, window.L_BIN)
         array = f(t)
-        
         map(lambda x : self.canvas.delete(x), self.epicycles_id)
         self.epicycles_id = []
         map(lambda x : self.canvas.delete(x), self.through_lines_id)
         self.through_lines_id = []
-        
-        acircle = fft2circle.get_circle_fft(np.real(array), np.imag(array))
+        self.listbox_epicycles.delete(0, tk.END)
+        acircle = fft2circle.get_circle_fft(array)
         self.r = []
         self.p = []
         self.n = []
         self.v = []
-        # the epcycle data
-        _inv = []
-        self.max_through_lines = len(acircle)
-        
-        for i in range(len(acircle)):#设置i的取值范围，可以实现滤波功能，可选择添加交互
-            _inv.append((acircle[i].radius*(cos(acircle[i].p)+acircle[i].rot*1j*sin(acircle[i].p)), acircle[i].rot, acircle[i].omg))
-        
-        for k, (z, l, n) in enumerate(sorted(_inv, key=lambda _: -abs(_[0]))):
-            if abs(z) * window.SIZE < 0.3:
-                break  # filter the circles which are too small
-            self.r.append(abs(z) * window.SIZE)
-            self.p.append(atan2(l*z.imag, z.real))
+        self.max_through_lines = 0
+        if self.sorted_flag.get() :
+            acircle = sorted(acircle, key=lambda _: -_[0])
+        tmp = 0
+        for k, (r, n, l, p) in enumerate(acircle) :
+            if r * window.SIZE < 0.3 :
+                tmp += 1
+                continue  # filter the circles which are too small
+            elif r * window.SIZE > window.LINED_CIRCLE_MIN :
+                self.max_through_lines += 1
+                self.through_lines_id.append(self.canvas.create_line(0, 0, 0, 0, fill='blue'))
+            self.r.append(r * window.SIZE)
+            self.p.append(p)
             self.n.append(n)
             self.v.append(l)
             self.epicycles_id.append(self.canvas.create_oval(0, 0, 0, 0))
-            if abs(z) * window.SIZE < 5.:
-                self.through_lines_id.append(self.canvas.create_line(0, 0, 0, 0, fill='blue'))
-            elif k > 2 and self.r[-2] >= 5. :
-                self.max_through_lines = k
             self.listbox_epicycles.insert(tk.END,
                             'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d %sclockwise' 
-                            % (k, self.r[-1], self.p[-1], n, l==1 and 'counter' or ''))
-        
+                            % (k - tmp, self.r[-1], self.p[-1], n, l==1 and 'counter' or ''))
+
         self.button_animation.configure(state=tk.NORMAL)
 
 if __name__ == '__main__':
