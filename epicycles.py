@@ -17,11 +17,24 @@ import ttk
 from PIL import ImageTk, Image
 
 import time
-from math import sin, cos, floor, pi
+from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
 from scipy.interpolate import interp1d
 
+def _scale(master, text, from_, to, default_, ref=lambda x : x, side=tk.LEFT, **kw) :
+    '''
+    Tkinter scale widget generator.
+    '''
+    frame = tk.Frame(master)
+    label = tk.Label(frame, text='%s' % default_)
+    sc = tk.Scale(frame, label=text, from_=from_, to=to, showvalue=0,
+                  command=lambda *args : label.config(text='%s' % ref(sc.get())), **kw)
+    sc.set(default_)
+    sc.pack(side=tk.TOP)
+    label.pack(side=tk.TOP)
+    frame.pack(side=side)
+    return lambda : ref(sc.get())
 
 class window:
     '''
@@ -60,6 +73,9 @@ class window:
         self.tn = 0
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
+        self.button_settings = tk.Button(self.frame_buttons, 
+                                         text='settings', command=self.on_settings)
+        self.button_settings.pack(side=tk.TOP, fill=tk.X)
         self.sorted_flag = tk.IntVar()
         self.checkbutton_sorted = tk.Checkbutton(self.frame_buttons, text='sort by radius',
                                       variable=self.sorted_flag, onvalue=1, offvalue=0)
@@ -68,8 +84,8 @@ class window:
         self.button_image = tk.Button(self.frame_buttons,
                                           text='open an image', command=self.on_open_image)
         self.button_hide_image = tk.Button(self.frame_buttons,
-                                           state=tk.DISABLED,
-                                           text='hide image', command=self.on_hide_image)
+                                          state=tk.DISABLED,
+                                          text='hide image', command=self.on_hide_image)
         self.button_image.pack(side=tk.TOP, fill=tk.X)
         self.button_hide_image.pack(side=tk.TOP, fill=tk.X)
         self.button_calculate = tk.Button(self.frame_buttons,
@@ -83,13 +99,12 @@ class window:
         self.notebook = ttk.Notebook(self.root)
         
         self.frame_logs = tk.Frame(width=100)
-        self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=20)
+        self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=17)
         self.listbox_points.pack()
-        self.listbox_points_flag = 0 #0 stands for points
         self.notebook.add(self.frame_logs, text='points')
         
         self.frame_epicycles = tk.Frame(width=100)
-        self.listbox_epicycles = tk.Listbox(self.frame_epicycles, activestyle='dotbox', height=20)
+        self.listbox_epicycles = tk.Listbox(self.frame_epicycles, activestyle='dotbox', height=17)
         self.listbox_epicycles.pack()
         
         self.notebook.add(self.frame_epicycles, text='epicycles')
@@ -108,13 +123,34 @@ class window:
         self.drawing = False
         self.draw()
         self.root.mainloop()
-
-    def on_lines_display(self):
+        
+    def on_settings(self) :
+        tmp = self.show_animation
+        self.show_animation = False
+        
+        self.top_settings = tk.Toplevel(self.root)
+        speed = _scale(self.top_settings, 'speed', 1, 20, window.SPEED*5., lambda x : x/5.)
+        lbin = _scale(self.top_settings, 'datas', 4, 20, log(window.L_BIN, 2), lambda x : 2**x)
+        tracers = _scale(self.top_settings, 'tracers', 50, 2000, window.MAX_TRACERS)
+        def _lambda() :
+            if tmp :
+                self.calculate()
+            window.SPEED = speed()
+            window.L_BIN = lbin()
+            window.MAX_TRACERS = tracers()
+            self.tracers_id = [0] * window.MAX_TRACERS
+        apply_ = tk.Button(self.top_settings, text='Apply', command=_lambda)
+        apply_.pack()
+        
+        self.show_animation = tmp
+        
+        
+    def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
         self.show_lines = not self.show_lines
 
-    def on_points_display(self):
+    def on_points_display(self) :
         self.show_points = not self.show_points
         if self.show_points:
             for point_id in self.points_id:
@@ -125,18 +161,10 @@ class window:
 
     def on_toggle_animation(self):
         self.show_animation = not self.show_animation
-
-    def refresh_listbox_points(self) :
-        self.listbox_points.delete(0, tk.END)
-        if self.listbox_points_flag == 0 :
-            for n in range(len(self.points)//2):
-                self.listbox_points.insert('point[%d] at (%3d, %3d)'
-                                    % (n, self.points[2*n], self.points[2*n+1]))
-            
-        elif self.listbox_points_flag == 1 :    
-            pass
         
     def on_open_image(self) :
+        tmp = self.show_animation
+        self.show_animation = False
         try :
             self.img_path = filedialog.askopenfilename(
                         parent=self.root,
@@ -155,6 +183,7 @@ class window:
                              'e.g. example.tiff, juli.jpg, money.png', icon='warning')
         except AttributeError :             #exception when cancal open a file
             pass
+        self.show_animation = tmp
         
     def on_hide_image(self) :
         self.canvas.delete(self._image)
@@ -176,9 +205,6 @@ class window:
                         'Note:   This is a MIT licensed software.\n')
         self.show_animation = tmp
         
-    def remove_item(self) :
-        if self.listbox_points_flag == 0 :
-            pass
     
     def onclick(self, me):
         self.points.append(me.x - window.SIZE)
@@ -192,8 +218,7 @@ class window:
                                         self.points[-3] + 1 + window.SIZE, tag='p', outline='orange'))
         self.points_id.append(
             self.canvas.create_oval(me.x - 1, me.y - 1, me.x + 1, me.y + 1, tag='p', fill='red', outline='red'))
-        if self.listbox_points_flag == 0 :
-            self.listbox_points.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
+        self.listbox_points.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
                                  % (len(self.points)//2, me.x - window.SIZE, me.y - window.SIZE))
 
     def undo_click(self, me):
@@ -237,6 +262,8 @@ class window:
         self.drawing = False
 
     def upload_tracers(self, x, y):
+        if not self.tn < window.MAX_TRACERS :
+            self.tn = 0
         if self.tracers_id[self.tn] == 0:
             self.tracers_id[self.tn] = self.canvas.create_oval(x - window.TRACER_SIZE, y - window.TRACER_SIZE, x + window.TRACER_SIZE, y + window.TRACER_SIZE, fill='red')
         else:
