@@ -47,6 +47,7 @@ class window:
     SPEED = 2.
     L_BIN = 1024
     LINED_CIRCLE_MIN = 5.
+    MIN_CIRCLE_SIZE = 0.3
 
     def __init__(self):
         self.root = tk.Tk()
@@ -71,16 +72,13 @@ class window:
         self.epicycles_id = []
         self.tracers_id = [0] * window.MAX_TRACERS
         self.tn = 0
+        self.sorted_flag = 1
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_settings = tk.Button(self.frame_buttons, 
                                          text='settings', command=self.on_settings)
         self.button_settings.pack(side=tk.TOP, fill=tk.X)
-        self.sorted_flag = tk.IntVar()
-        self.checkbutton_sorted = tk.Checkbutton(self.frame_buttons, text='sort by radius',
-                                      variable=self.sorted_flag, onvalue=1, offvalue=0)
-        self.checkbutton_sorted.select()
-        self.checkbutton_sorted.pack(side=tk.TOP, fill=tk.X)
+        
         self.button_image = tk.Button(self.frame_buttons,
                                           text='open an image', command=self.on_open_image)
         self.button_hide_image = tk.Button(self.frame_buttons,
@@ -132,17 +130,30 @@ class window:
         speed = _scale(self.top_settings, 'speed', 1, 20, window.SPEED*5., lambda x : x/5.)
         lbin = _scale(self.top_settings, 'datas', 4, 20, log(window.L_BIN, 2), lambda x : 2**x)
         tracers = _scale(self.top_settings, 'tracers', 50, 2000, window.MAX_TRACERS)
-        def _lambda() :
-            if tmp :
-                self.calculate()
+        mincirc = _scale(self.top_settings, 'min circle size', 1, 16,
+                         7-log(window.MIN_CIRCLE_SIZE, 2), lambda x : round(2**(7-x), 3))
+        sorted_ = tk.IntVar()
+        _sorted_ = tk.Checkbutton(self.top_settings, text='sort by radius',
+                                      variable=sorted_, onvalue=1, offvalue=0)
+        self.sorted_flag and _sorted_.select()
+        _sorted_.pack(side=tk.TOP, fill=tk.X)            
+            
+        #apply_ = tk.Button(self.top_settings, text='Apply', command=_lambda)
+        #apply_.pack()
+        
+        def on_closing() :
             window.SPEED = speed()
             window.L_BIN = lbin()
             window.MAX_TRACERS = tracers()
+            window.MIN_CIRCLE_SIZE = mincirc()
+            map(lambda x : x or self.canvas.delete(x), self.tracers_id)
             self.tracers_id = [0] * window.MAX_TRACERS
-        apply_ = tk.Button(self.top_settings, text='Apply', command=_lambda)
-        apply_.pack()
-        
-        self.show_animation = tmp
+            self.sorted_flag = sorted_.get()
+            if tmp :
+                self.calculate()
+            self.show_animation = tmp
+            self.top_settings.destroy()
+        self.top_settings.protocol('WM_DELETE_WINDOW', on_closing)
         
         
     def on_lines_display(self) :
@@ -202,7 +213,8 @@ class window:
                         '\n'
                         'Source:  https://github.com/sclereid/epicycles\n'
                         '\n'
-                        'Note:   This is a MIT licensed software.\n')
+                        'Note:   This is a GPL licensed software.\n'
+                        )
         self.show_animation = tmp
         
     
@@ -290,11 +302,11 @@ class window:
         self.n = []
         self.v = []
         self.max_through_lines = 0
-        if self.sorted_flag.get() :
+        if self.sorted_flag :
             acircle = sorted(acircle, key=lambda _: -_[0])
         tmp = 0
         for k, (r, n, l, p) in enumerate(acircle) :
-            if r * window.SIZE < 0.3 :
+            if r * window.SIZE < window.MIN_CIRCLE_SIZE :
                 tmp += 1
                 continue  # filter the circles which are too small
             elif r * window.SIZE > window.LINED_CIRCLE_MIN :
