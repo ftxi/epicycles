@@ -4,17 +4,23 @@
 
 from __future__ import division
 
-try:                        #python 2.7
+try :                        #python 2.7
     import Tkinter as tk
     import tkFileDialog as filedialog
     import tkMessageBox as msgbox
-except ImportError:         #python 3
+except ImportError :         #python 3
     import tkinter as tk
     from tkinter import filedialog
     import tkinter.messagebox as msgbox
 
 import ttk
 from PIL import ImageTk, Image
+
+try :
+    import epi_core
+    export_flag = True
+except ImportError :
+    export_flag = False
 
 import time
 from math import sin, cos, floor, pi, log
@@ -84,8 +90,11 @@ class window:
         self.button_hide_image = tk.Button(self.frame_buttons,
                                           state=tk.DISABLED,
                                           text='hide image', command=self.on_hide_image)
+        self.button_export = tk.Button(self.frame_buttons, state=tk.DISABLED,
+                                       text='export...', command=self.on_export)
         self.button_image.pack(side=tk.TOP, fill=tk.X)
         self.button_hide_image.pack(side=tk.TOP, fill=tk.X)
+        self.button_export.pack(side=tk.TOP, fill=tk.X)
         self.button_calculate = tk.Button(self.frame_buttons,
                                           text='calculate', command=self.calculate)
         self.button_calculate.pack(side=tk.TOP, fill=tk.X)
@@ -126,22 +135,22 @@ class window:
         tmp = self.show_animation
         self.show_animation = False
         
-        self.top_settings = tk.Toplevel(self.root)
-        speed = _scale(self.top_settings, 'speed', 1, 20, window.SPEED*5., lambda x : x/5.)
-        lbin = _scale(self.top_settings, 'datas', 4, 20, log(window.L_BIN, 2), lambda x : 2**x)
-        tracers = _scale(self.top_settings, 'tracers', 50, 2000, window.MAX_TRACERS)
-        mincirc = _scale(self.top_settings, 'min circle size', 1, 16,
+        top_settings = tk.Toplevel(self.root)
+        speed = _scale(top_settings, 'speed', 1, 40, window.SPEED*5., lambda x : x/5.)
+        lbin = _scale(top_settings, 'datas', 4, 20, log(window.L_BIN, 2), lambda x : 2**x)
+        tracers = _scale(top_settings, 'tracers', 50, 2000, window.MAX_TRACERS)
+        mincirc = _scale(top_settings, 'min circle size', 1, 16,
                          7-log(window.MIN_CIRCLE_SIZE, 2), lambda x : round(2**(7-x), 3))
         sorted_ = tk.IntVar()
-        _sorted_ = tk.Checkbutton(self.top_settings, text='sort by radius',
+        _sorted_ = tk.Checkbutton(top_settings, text='sort by radius',
                                       variable=sorted_, onvalue=1, offvalue=0)
         self.sorted_flag and _sorted_.select()
         _sorted_.pack(side=tk.TOP, fill=tk.X)            
             
-        #apply_ = tk.Button(self.top_settings, text='Apply', command=_lambda)
+        #apply_ = tk.Button(top_settings, text='Apply', command=_lambda)
         #apply_.pack()
         
-        def on_closing() :
+        def top_closing() :
             window.SPEED = speed()
             window.L_BIN = lbin()
             window.MAX_TRACERS = tracers()
@@ -152,10 +161,18 @@ class window:
             if tmp :
                 self.calculate()
             self.show_animation = tmp
-            self.top_settings.destroy()
-        self.top_settings.protocol('WM_DELETE_WINDOW', on_closing)
+            top_settings.destroy()
+        top_settings.protocol('WM_DELETE_WINDOW', top_closing)
         
-        
+    def on_export(self):
+        filename = filedialog.asksaveasfilename(parent=self.root,
+                        defaultextension='.gif', initialfile='animation.gif')
+        if not filename :
+            print 'none'
+            return
+        epi_core.init(filename, window.SIZE, window.SPEED, self.r, self.p, self.n)
+        pass
+    
     def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
@@ -320,7 +337,7 @@ class window:
             self.listbox_epicycles.insert(tk.END,
                             'circle[%d] radius=%3.3f phi=%3.3f frequency=%3d %sclockwise' 
                             % (k - tmp, self.r[-1], self.p[-1], n, l==1 and 'counter' or ''))
-
+        export_flag and self.button_export.configure(state=tk.NORMAL)
         self.button_animation.configure(state=tk.NORMAL)
 
 if __name__ == '__main__':
