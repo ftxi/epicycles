@@ -168,10 +168,9 @@ class window:
         filename = filedialog.asksaveasfilename(parent=self.root,
                         defaultextension='.gif', initialfile='animation.gif')
         if not filename :
-            print 'none'
             return
-        epi_core.init(filename, window.SIZE, window.SPEED, self.r, self.p, self.n)
-        pass
+        epi_core.gif(filename, window.SIZE, window.SPEED,
+                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
     
     def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
@@ -300,7 +299,7 @@ class window:
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
     def calculate(self):
-        if self.points < 4 :
+        if len(self.points) < 4 :
             return
         _z = (np.append(self.points[::2], [self.points[0]]) + \
                     np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
