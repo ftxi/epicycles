@@ -23,8 +23,8 @@ More Features:
 * [x] allow using a background picture
 * [x] more user defined variables
 * [ ] colorful background
-* [ ] better tracers
-* [ ] export as animated gif
+* [x] better tracers
+* [x] export as animated gif
 
 **create delicate epicycles:**
 
