@@ -23,6 +23,7 @@ except ImportError :
     export_flag = False
 
 import time
+import re
 from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
@@ -166,11 +167,26 @@ class window:
         
     def on_export(self):
         filename = filedialog.asksaveasfilename(parent=self.root,
-                        defaultextension='.gif', initialfile='animation.gif')
+                        defaultextension='.mp4', initialfile='animation.mp4',
+                        filetypes=[('gif animation', '.gif'), ('mpeg-4 video', '.mp4')])
         if not filename :
             return
-        epi_core.gif(filename, window.SIZE, window.SPEED,
+        if re.match(r'\.gif$', filename) :
+            epi_core.gif(filename, window.SIZE, window.SPEED,
                       self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+        epi_core.mp4(filename, window.SIZE, window.SPEED,
+                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+        ''' don't know what's wrong happens below:
+        if re.match(r'\.mp4$', filename) :
+            epi_core.mp4(filename, window.SIZE, window.SPEED,
+                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+        elif re.match(r'\.gif$', filename) :
+            epi_core.gif(filename, window.SIZE, window.SPEED,
+                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+        else :
+            msgbox.showerror('Invalid export type',
+                             'Please use gif or mp4 as extension\n', icon='warning')
+        '''
     
     def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
