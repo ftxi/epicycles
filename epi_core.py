@@ -45,7 +45,7 @@ def gif(filename, size, speed, r, p, n, l, line_min=5, filter_zero=True) :
     create_image._x_ = 0.0
     create_image._y_ = 0.0
     create_image.first = True
-    images = map(create_image, np.append(ts, ts))
+    images = map(create_image, ts)
     imageio.mimsave(filename, images)
 
 def mp4(filename, size, speed, r, p, n, l, line_min=5, filter_zero=True) :

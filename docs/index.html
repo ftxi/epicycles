@@ -11759,10 +11759,10 @@ $$<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Ep
 <blockquote><p>... the epicycle is made to move in longitude in the order of the signs in a circle concentric with the Zodiac [i.e., from west to east], while the planet moves on the epicycle at a velocity which is the same as that of the anomaly; on that part of the epicycle farthest from the earth the motion is direct.</p>
 </blockquote>
 <p></p>
-<p>The main objective of this article is to explain how to create epicycles moving in a certain shape, as represented below:</p>
-<video width="640" height="640" controls>
+<p>The main objective of this article is to explain how to create epicycles moving in a certain shape. For example, a motion could be as complicated as which is represented below:</p>
+<p></p>
+<video width="640" height="640" autoplay loop>
     <source src="../resource/overture.mp4" type="video/mp4" />
-
 </video>
 <h3 id="Mathematics">Mathematics<a class="anchor-link" href="#Mathematics">&#182;</a></h3><ol>
 <li><p>Let us represent a motion in points with complex numbers. For example, $(x, y)$ correspond to $x+iy$, where $i$ is $\sqrt{-1}$.</p>
@@ -11785,7 +11785,7 @@ $$<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Ep
 <p>This can be done in a really fast speed using <em>Fast Fourier Transform(fft)</em>, an algorithm within the time limit of $\Theta(n \log_2 n)$.</p>
 <p>To convert the integration part into a <em>fft</em> calculation, let us write $$c_n = \frac{1}{P}\int_0^P f(t) \cdot e^{-i \frac{2\pi n t}{P}} \ud t = \frac{1}{P} \cdot \frac{P}{N} \cdot \lim_{N \to +\infty}\sum_{k=0}^{N-1} f(\frac{k P}{N}) \cdot e^{-i \frac{2\pi n}{P} \cdot \frac{k P}{N}}$$</p>
 <p>Shall we choose a large number $N$. In order to satisfy the algorithm of <em>fft</em>, we may choose some of these powers of 2(e.g. 1024), and $f(\frac{k P}{N})$ could be a pre-prepared complex-varible sample array $\{a_1, \, a_2, \, \ldots, \, a_k\}$. Now, we have $$c_n = \frac{1}{N}\sum_{k=0}^{N-1} a_k \cdot e^{-i \frac{2\pi k n}{N}}$$ which exactly matches the formula of the <em>Discrete Fourier Transform</em>.</p>
-<p>While the <em>Inversed Discrete Fourier Transform</em> defined as$$x_n = \frac{1}{N}\sum_{k=0}^{N-1} y_k \cdot e^{-i \frac{2\pi k n}{N}}$$</p>
+<p>While the <em>Inversed Discrete Fourier Transform</em> is defined as$$x_n = \frac{1}{N}\sum_{k=0}^{N-1} y_k \cdot e^{-i \frac{2\pi k n}{N}}$$</p>
 <p>It is not difficult to relate this equation to the movement of epicycles:$$s_N(t) = \sum_{n=0}^{N-1} c_n \cdot e^{-i \frac{2\pi n}{N} \cdot \frac{N t}{P}} = \sum_{n=0}^{N-1} c_n \cdot e^{-i \frac{2\pi n t}{P}}$$</p>
 </li>
 <li><p>The above method is also mathematically correct. However, some coefficients with large modules are likely to appear at the end of the <em>fft</em> output array. In this way, although all sample points are passed by the last epicycle, the $s_N(t)$ curve cannot match the original motion. But there is a simple solution.</p>
@@ -11806,12 +11806,12 @@ $$<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Ep
 <hr>
 <p>Thank you for reading.</p>
 <p>This work is licensed under a <a rel="license" href=" ">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.</a></p>
-<p><small>By sclereid in Apr 2017, as a present for <span style="color:lightgray; font-size:0.5em">$\Money$</span></small></p>
+<p><small>By sclereid in Apr 2017,<span style="color:lightgray; font-size:0.7em"> as a present for someone known as  $\Money$</span></small></p>
 
 </div>
 </div>
 </div>
-    </div>
-  </div>
+</div>
+</div>
 </body>
 </html>
