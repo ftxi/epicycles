@@ -11752,10 +11752,11 @@ div#notebook {
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 
-$$
+<p style="font-size:0px; color:white">$$
 \def\ud{\mathrm{d}}
 \def\Money{\mathrm{Mon\vec{e_{\displaystyle{y}}}}}
-$$<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Epicycles">&#182;</a></h1><h3 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h3><p>In the study of ancient astronomy:</p>
+$$</p>
+<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Epicycles">&#182;</a></h1><h3 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h3><p>In the study of ancient astronomy:</p>
 <blockquote><p>... the epicycle is made to move in longitude in the order of the signs in a circle concentric with the Zodiac [i.e., from west to east], while the planet moves on the epicycle at a velocity which is the same as that of the anomaly; on that part of the epicycle farthest from the earth the motion is direct.</p>
 </blockquote>
 <p></p>
@@ -11771,7 +11772,7 @@ $$<h1 id="About-Epicycles">About Epicycles<a class="anchor-link" href="#About-Ep
 <p>Besides, a circular motion can be represented by $$\vec r = (r \cos (\frac{2\pi t}{P}+\varphi), \, r \sin (\frac{2\pi t}{P}+\varphi)) $$ where $r$ is radius, $P$ is period, and $\varphi$ is the phase angle.</p>
 <p>And the combination of several epicycle movement could be shown as $$\vec r = \vec{r_1} + \vec{r_2} + \ldots + \vec{r_N}$$</p>
 <p>Or, more briefly, as $e^{ix} = \cos x + i\sin x$(where $e=2.718281\ldots$ is the base of natual logrithm), let us write $$z=r e^{i (\frac{2\pi t}{P} + \varphi)}$$</p>
-<p>Now, we can describe a series of epicycles as $$s_N(t) = r_1 e^{i (\frac{2\pi \omega_1 t}{P} + \varphi_1)} + r_2 e^{i (\frac{2\pi \omega_2 t}{P} + \varphi_2)} + \ldots + r_N e^{i (\frac{2\pi \omega_N t}{P} + \varphi_N)}  = \sum_{n=0}^N r_n e^{i (\frac{2\pi \omega_n t}{P} + \varphi_n)}$$</p>
+<p>Now, we can describe a series of epicycles as $$s_N(t) = r_1 e^{i (\frac{2\pi \omega_1 t}{P} + \varphi_1)} + r_2 e^{i (\frac{2\pi \omega_2 t}{P} + \varphi_2)} + \ldots + r_N e^{i (\frac{2\pi \omega_N t}{P} + \varphi_N)}  = \sum_{n=1}^N r_n e^{i (\frac{2\pi \omega_n t}{P} + \varphi_n)}$$</p>
 </li>
 <li><p>Consider the motion given by a $\mathbb{R} \rightarrow \mathbb{C}$ function $f(t)$.</p>
 <p>As Norwood Russel Hanson pointed out in his essay <em>The Mathematical Power of Epicycle Astronomy</em>, the distance between corresponding two orbits can be less than any positive number $\epsilon$. Thus, we can use the epicycles to represent any plane motion.</p>
