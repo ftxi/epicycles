@@ -15,6 +15,7 @@ except ImportError :         #python 3
 
 import ttk
 from PIL import ImageTk, Image
+import threading
 
 try :
     import epi_core
@@ -23,7 +24,6 @@ except ImportError :
     export_flag = False
 
 import time
-import re
 from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
@@ -71,7 +71,6 @@ class window:
         self.canvas.create_line(window.SIZE, 0, window.SIZE, 2 * window.SIZE, fill='gray')
         # axies
         self.show_lines = True
-        self.show_points = True
         self.show_animation = False
         self.lines_id = self.canvas.create_polygon(0, 0, 0, 0, fill='', outline='gray70')
         self.through_lines_id = []
@@ -80,6 +79,7 @@ class window:
         self.tracers_id = [0] * window.MAX_TRACERS
         self.tn = 0
         self.sorted_flag = 1
+        self.exporting = True
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_settings = tk.Button(self.frame_buttons, 
@@ -121,9 +121,9 @@ class window:
         self.button_lines = tk.Button(self.frame_buttons,
                                       text='toggle lines display', command=self.on_lines_display)
         self.button_lines.pack(side=tk.TOP, fill=tk.X)
-        self.button_points = tk.Button(self.frame_buttons,
-                                      text='toggle points display', command=self.on_points_display)
-        self.button_points.pack(side=tk.TOP, fill=tk.X)
+        self.button_clear = tk.Button(self.frame_buttons,
+                                      text='clear tracers', command=self.on_clear)
+        self.button_clear.pack(side=tk.TOP, fill=tk.X)
         self.button_about = tk.Button(self.frame_buttons,
                                       text='About Epicycles & sclereid', command=self.on_about)
         self.button_about.pack(side=tk.TOP, fill=tk.X)
@@ -146,19 +146,15 @@ class window:
         _sorted_ = tk.Checkbutton(top_settings, text='sort by radius',
                                       variable=sorted_, onvalue=1, offvalue=0)
         self.sorted_flag and _sorted_.select()
-        _sorted_.pack(side=tk.TOP, fill=tk.X)            
-            
-        #apply_ = tk.Button(top_settings, text='Apply', command=_lambda)
-        #apply_.pack()
+        _sorted_.pack(side=tk.TOP, fill=tk.X)
         
         def top_closing() :
             window.SPEED = speed()
             window.L_BIN = lbin()
             window.MAX_TRACERS = tracers()
             window.MIN_CIRCLE_SIZE = mincirc()
-            map(lambda x : x or self.canvas.delete(x), self.tracers_id)
-            self.tracers_id = [0] * window.MAX_TRACERS
             self.sorted_flag = sorted_.get()
+            self.on_clear()
             if tmp :
                 self.calculate()
             self.show_animation = tmp
@@ -166,39 +162,57 @@ class window:
         top_settings.protocol('WM_DELETE_WINDOW', top_closing)
         
     def on_export(self):
+        filter_zero = tk.IntVar()
         top_export = tk.Toplevel(self.root)
+        _filter_zero = tk.Checkbutton(top_export, text='filter static circle',
+                                      variable=filter_zero, onvalue=1, offvalue=0)
+        _filter_zero.select()
+        frames = _scale(top_export, 'frames', 2, 50, 4, lambda x : x*100)
+        fps = _scale(top_export, 'fps', 3, 9, 4, lambda x : x*8)
+        progressbar = ttk.Progressbar(top_export, orient="horizontal", length=200)
+        progresslabel = tk.Label(top_export,
+                    text='Note: fps and frames modification are only avalible for mp4 option')
+        def _update_progress(s) :
+            progressbar.step()
+            progresslabel.config(text=s)
+        def refresh():
+            if self.exporting :
+                top_export.after(200, refresh)
+            top_export.update()
+            progressbar.update()
+            progresslabel.update()
         def save_gif() :
             filename = filedialog.asksaveasfilename(parent=self.root,
                         defaultextension='.gif', initialfile='animation.gif')
             if not filename :
                 return
-            epi_core.gif(filename, window.SIZE, window.SPEED,
-                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+            epi_core.gif(filename, window.SIZE, self.r, self.p, self.n, self.v,
+                         window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get())
         def save_mp4() :
             filename = filedialog.asksaveasfilename(parent=self.root,
                         defaultextension='.mp4', initialfile='animation.mp4')
             if not filename :
                 return
-            epi_core.mp4(filename, window.SIZE, window.SPEED,
-                      self.r, self.p, self.n, self.v, window.LINED_CIRCLE_MIN)
+            progressbar.config(maximum=frames()//5)
+            top_export.focus_force()
+            self.exporting = True
+            refresh()
+            threading.Thread(target=lambda:epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
+                         window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
+                         fps=fps(), frames=frames(), progresscallback=_update_progress))
+            self.exporting = False
+        _filter_zero.pack(side=tk.TOP, fill=tk.X)
         button_gif = tk.Button(top_export, text='export as gif', command=save_gif)
         button_mp4 = tk.Button(top_export, text='export as mp4', command=save_mp4)
-        button_gif.pack()
-        button_mp4.pack()
+        button_gif.pack(side=tk.TOP, fill=tk.X)
+        button_mp4.pack(side=tk.TOP, fill=tk.X)
+        progressbar.pack(side=tk.BOTTOM, fill=tk.X)
+        progresslabel.pack(side=tk.BOTTOM, fill=tk.X)
 
     def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
         self.show_lines = not self.show_lines
-
-    def on_points_display(self) :
-        self.show_points = not self.show_points
-        if self.show_points:
-            for point_id in self.points_id:
-                self.canvas.itemconfig(point_id, outline='orange')
-        else:
-            for point_id in self.points_id:
-                self.canvas.itemconfig(point_id, outline='')
 
     def on_toggle_animation(self):
         self.show_animation = not self.show_animation
@@ -224,6 +238,7 @@ class window:
                              'e.g. example.tiff, juli.jpg, money.png', icon='warning')
         except AttributeError :             #exception when cancal open a file
             pass
+        self.on_clear()
         self.show_animation = tmp
         
     def on_hide_image(self) :
@@ -248,7 +263,7 @@ class window:
         self.show_animation = tmp
         
     
-    def onclick(self, me):
+    def onclick(self, me) :
         self.points.append(me.x - window.SIZE)
         self.points.append(me.y - window.SIZE)
         if len(self.points) > 2:
@@ -263,7 +278,7 @@ class window:
         self.listbox_points.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
                                  % (len(self.points)//2, me.x - window.SIZE, me.y - window.SIZE))
 
-    def undo_click(self, me):
+    def undo_click(self, me) :
         if len(self.points) > 0:
             self.canvas.delete(self.points_id.pop())
             self.points.pop()
@@ -271,26 +286,31 @@ class window:
             self.listbox_points.delete(tk.END)
         if len(self.points) == 2:
             self.canvas.delete(self.lines_id)
-
-    def draw(self):
+            
+    def on_clear(self) :
+        map(lambda x : x and self.canvas.delete(x), self.tracers_id)
+        self.tracers_id = [0] * window.MAX_TRACERS
+        
+    def draw(self) :
         self.canvas.after(window.REFRESH, self.draw)
-        if self.drawing:
+        if self.drawing :
             return
         self.drawing = True
-        if self.show_animation:
+        if self.show_animation :
             N = len(self.n)
-            tmp = (time.time() / N * 4 - floor(time.time() / N * 2 / pi) * 2.0 * pi) * window.SPEED
+            _tmp = time.time()/N*window.SPEED*2
+            tmp = (_tmp-floor(_tmp/2/pi)*2.0*pi)
             x, y = 0.0, 0.0
             _x, _y = 0.0, 0.0
             u = 0
-            for k in range(N):
+            for k in range(N) :
                 rotation = self.v[k]
                 _x += self.r[k] * cos(rotation*tmp * self.n[k] + self.p[k])
                 _y += self.r[k] * sin(rotation*tmp * self.n[k] + self.p[k])
                 self.canvas.coords(self.epicycles_id[k], int(x - self.r[k]) + window.SIZE,\
                                    int(y - self.r[k]) + window.SIZE, int(x + self.r[k]) + window.SIZE,\
                                    int(y + self.r[k]) + window.SIZE)
-                if self.r[k] > window.LINED_CIRCLE_MIN:
+                if self.r[k] > window.LINED_CIRCLE_MIN :
                     self.canvas.coords(self.through_lines_id[u], int(x) + window.SIZE,\
                                    int(y) + window.SIZE, int(_x) + window.SIZE,\
                                    int(_y) + window.SIZE)
@@ -298,21 +318,21 @@ class window:
                 x, y = _x, _y
                 
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
-        if self.show_lines and len(self.points) >= 4:
+        if self.show_lines and len(self.points) >= 4 :
             self.canvas.delete(self.lines_id)
             self.lines_id = self.canvas.create_polygon(list(map(lambda z: z+window.SIZE, self.points)), fill='', outline='gray70')
         self.drawing = False
 
-    def upload_tracers(self, x, y):
+    def upload_tracers(self, x, y) :
         if not self.tn < window.MAX_TRACERS :
             self.tn = 0
-        if self.tracers_id[self.tn] == 0:
+        if self.tracers_id[self.tn] == 0 :
             self.tracers_id[self.tn] = self.canvas.create_oval(x - window.TRACER_SIZE, y - window.TRACER_SIZE, x + window.TRACER_SIZE, y + window.TRACER_SIZE, fill='red')
         else:
             self.canvas.coords(self.tracers_id[self.tn], x - window.TRACER_SIZE, y - window.TRACER_SIZE, x + window.TRACER_SIZE, y + window.TRACER_SIZE)
         self.tn = (self.tn + 1) % window.MAX_TRACERS
 
-    def calculate(self):
+    def calculate(self) :
         if len(self.points) < 4 :
             return
         _z = (np.append(self.points[::2], [self.points[0]]) + \
@@ -353,5 +373,5 @@ class window:
         export_flag and self.button_export.configure(state=tk.NORMAL)
         self.button_animation.configure(state=tk.NORMAL)
 
-if __name__ == '__main__':
+if __name__ == '__main__' :
     window()
