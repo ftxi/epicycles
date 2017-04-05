@@ -15,7 +15,6 @@ except ImportError :         #python 3
 
 import ttk
 from PIL import ImageTk, Image
-import threading
 
 try :
     import epi_core
@@ -197,9 +196,9 @@ class window:
             top_export.focus_force()
             self.exporting = True
             refresh()
-            threading.Thread(target=lambda:epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
+            epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
                          window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
-                         fps=fps(), frames=frames(), progresscallback=_update_progress))
+                         fps=fps(), frames=frames(), progresscallback=_update_progress)
             self.exporting = False
         _filter_zero.pack(side=tk.TOP, fill=tk.X)
         button_gif = tk.Button(top_export, text='export as gif', command=save_gif)
