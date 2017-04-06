@@ -11,10 +11,10 @@ This is a saparated package.
 import numpy as np
 from math import sin, cos
 import imageio
-from PIL import Image, ImageDraw #, ImageFilter
+from PIL import Image, ImageDraw
 import time
 
-def gif(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=200, progresscallback=lambda x, s: print(s)) :
+def gif(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=200, progresscallback=lambda s: print(s)) :
     DIFF = 2
     size *= DIFF
     N = len(n)
@@ -47,10 +47,11 @@ def gif(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=200, pr
     create_image._y_ = 0.0
     create_image.first = True
     images = map(create_image, ts)
+    progresscallback('calculation finished, saving...')
     imageio.mimsave(filename, images)
+    progresscallback('done.')
 
 def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fps=32, progresscallback=lambda s: print(s)) :
-    size = 320
     DIFF = 2
     size *= DIFF
     N = len(n)
@@ -60,7 +61,7 @@ def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fp
     progress = 0
     progress_max = 2*frames
     begin = time.time()
-    progresscallbackfreq = frames*2//5
+    progresscallbackfreq = 5
     
     def create_image(t) :
         img = imgbase.copy()
@@ -87,29 +88,20 @@ def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fp
     create_image._y_ = 0.0
     create_image.first = True
     
-    writer = imageio.get_writer(filename, fps=fps)
-    for t in np.append(ts, ts) :
-        writer.append_data(create_image(t))
-        progress += 1
-        if progress % progresscallbackfreq == 0 :
-             eta = (time.time()-begin)/(progress/progress_max or 1)+begin-time.time()
-             progresscallback('%2.2f percent finished, E. T. A. %dm %.2fs' 
-                              % ((progress/progress_max*100), int(eta/60), (int(eta*100)%60)/100))
-    writer.close()
-    '''
-    try :    
+    try :
         writer = imageio.get_writer(filename, fps=fps)
         for t in np.append(ts, ts) :
             writer.append_data(create_image(t))
             progress += 1
             if progress % progresscallbackfreq == 0 :
-                eta = (time.time()-begin)/(1-progress/progress_max)+begin-time.time()
-                progresscallback('%2.2f percent finished, E. T. A. %dm %.2fs' 
-                                 % ((progress/progress_max), int(eta/60), (int(eta*100)%60)/100))
+                 eta = (time.time()-begin)*(progress_max - progress)/progress
+                 progresscallback('%2.2f percent finished, E. T. A. %dm %ds' 
+                                  % ((progress/progress_max*100), eta//60, int(eta)%60))
+        progresscallback('calculation finished, saving...')
         writer.close()
-    except Exception:
-        progresscallback("Oops. We've got an issue. Probably it is beacuse 'Need ffmpeg exe'"
-                         " request by imageio module, which I am trying to. Wait a minute.")
+        progresscallback('done.')
+    except imageio.core.NeedDownloadError :
+        progresscallback("Oops. It is said that 'Need ffmpeg exe' by imageio module, \n"
+                         "which I am trying to. Wait a minute.")
         imageio.plugins.ffmpeg.download()
         progresscallback("Now, try again.")
-    '''

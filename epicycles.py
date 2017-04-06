@@ -23,6 +23,7 @@ except ImportError :
     export_flag = False
 
 import time
+import threading
 from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
@@ -46,7 +47,7 @@ class window:
     '''
     The program window.
     '''
-    SIZE = 300
+    SIZE = 320
     REFRESH = 40  # refresh every 40 miliseconds
     MAX_TRACERS = 1000
     TRACER_SIZE = 2
@@ -54,7 +55,7 @@ class window:
     L_BIN = 1024
     LINED_CIRCLE_MIN = 5.
     MIN_CIRCLE_SIZE = 0.3
-
+    
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('Epicycles --An Enternal...')
@@ -78,7 +79,8 @@ class window:
         self.tracers_id = [0] * window.MAX_TRACERS
         self.tn = 0
         self.sorted_flag = 1
-        self.exporting = True
+        self.on_settings_opened = False
+        self.on_export_opened = False
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_settings = tk.Button(self.frame_buttons, 
@@ -132,6 +134,9 @@ class window:
         self.root.mainloop()
         
     def on_settings(self) :
+        if self.on_settings.opened :
+            return
+        self.on_settings.opened = True
         tmp = self.show_animation
         self.show_animation = False
         
@@ -158,64 +163,76 @@ class window:
                 self.calculate()
             self.show_animation = tmp
             top_settings.destroy()
+            self.on_settings_opened = False
         top_settings.protocol('WM_DELETE_WINDOW', top_closing)
         
     def on_export(self):
+        if self.on_export_opened :
+            return
+        self.on_export_opened = True
         filter_zero = tk.IntVar()
         top_export = tk.Toplevel(self.root)
-        _filter_zero = tk.Checkbutton(top_export, text='filter static circle',
+        frame_widgets = tk.Frame(top_export)
+        _filter_zero = tk.Checkbutton(frame_widgets, text='filter static circle',
                                       variable=filter_zero, onvalue=1, offvalue=0)
         _filter_zero.select()
-        frames = _scale(top_export, 'frames', 2, 50, 4, lambda x : x*100)
-        fps = _scale(top_export, 'fps', 3, 9, 4, lambda x : x*8)
-        progressbar = ttk.Progressbar(top_export, orient="horizontal", length=200)
+        frames = _scale(frame_widgets, 'frames', 2, 50, 4, lambda x : x*100)
+        fps = _scale(frame_widgets, 'fps', 3, 9, 4, lambda x : x*8)
+        progressbar = ttk.Progressbar(top_export, orient="horizontal", length=400)
         progresslabel = tk.Label(top_export,
-                    text='Note: fps and frames modification are only avalible for mp4 option')
+                    text='Note: fps and frames modification\n are only avalible for mp4 option')
         def _update_progress(s) :
             progressbar.step()
             progresslabel.config(text=s)
-        def refresh():
-            if self.exporting :
-                top_export.after(200, refresh)
             top_export.update()
             progressbar.update()
             progresslabel.update()
         def save_gif() :
-            filename = filedialog.asksaveasfilename(parent=self.root,
+            filename = filedialog.asksaveasfilename(parent=top_export,
                         defaultextension='.gif', initialfile='animation.gif')
             if not filename :
                 return
-            epi_core.gif(filename, window.SIZE, self.r, self.p, self.n, self.v,
-                         window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get())
+            t = threading.Thread(target = lambda : epi_core.gif(filename, window.SIZE, self.r, self.p, self.n, self.v,
+                         window.LINED_CIRCLE_MIN, frames=320, filter_zero=filter_zero.get()))
+            progressbar.config(maximum=2)
+            button_gif.configure(state=tk.DISABLED)
+            button_mp4.configure(state=tk.DISABLED)
+            t.run()
         def save_mp4() :
-            filename = filedialog.asksaveasfilename(parent=self.root,
+            filename = filedialog.asksaveasfilename(parent=top_export,
                         defaultextension='.mp4', initialfile='animation.mp4')
             if not filename :
                 return
-            progressbar.config(maximum=frames()//5)
             top_export.focus_force()
             self.exporting = True
-            refresh()
-            epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
+            t = threading.Thread(target = lambda : epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
                          window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
-                         fps=fps(), frames=frames(), progresscallback=_update_progress)
-            self.exporting = False
-        _filter_zero.pack(side=tk.TOP, fill=tk.X)
-        button_gif = tk.Button(top_export, text='export as gif', command=save_gif)
-        button_mp4 = tk.Button(top_export, text='export as mp4', command=save_mp4)
+                         fps=fps(), frames=frames(), progresscallback=_update_progress))
+            progressbar.config(maximum=frames()*2//5 + 2)
+            button_gif.configure(state=tk.DISABLED)
+            button_mp4.configure(state=tk.DISABLED)
+            t.run()
+        def top_closing() :
+            top_export.destroy()
+            self.on_export_opened = False
+        _filter_zero.pack(side=tk.TOP)
+        button_gif = tk.Button(frame_widgets, text='export as gif', command=save_gif)
+        button_mp4 = tk.Button(frame_widgets, text='export as mp4', command=save_mp4)
         button_gif.pack(side=tk.TOP, fill=tk.X)
         button_mp4.pack(side=tk.TOP, fill=tk.X)
+        frame_widgets.pack(side=tk.TOP)
         progressbar.pack(side=tk.BOTTOM, fill=tk.X)
         progresslabel.pack(side=tk.BOTTOM, fill=tk.X)
+        top_export.protocol('WM_DELETE_WINDOW', top_closing)
 
     def on_lines_display(self) :
         if self.show_lines and len(self.points) >= 4:
             self.canvas.delete(self.lines_id)
         self.show_lines = not self.show_lines
-
+    
     def on_toggle_animation(self):
         self.show_animation = not self.show_animation
-        
+    
     def on_open_image(self) :
         tmp = self.show_animation
         self.show_animation = False
