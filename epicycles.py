@@ -27,7 +27,7 @@ import threading
 from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, splprep, splev
 
 def _scale(master, text, from_, to, default_, ref=lambda x : x, side=tk.LEFT, **kw) :
     '''
@@ -81,6 +81,8 @@ class window:
         self.sorted_flag = 1
         self.on_settings_opened = False
         self.on_export_opened = False
+        self.interpolation = 1
+        # 0 stands for none, 1 stands for linear, 2 stands for splev
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=100)
         self.button_settings = tk.Button(self.frame_buttons, 
@@ -134,9 +136,9 @@ class window:
         self.root.mainloop()
         
     def on_settings(self) :
-        if self.on_settings.opened :
+        if self.on_settings_opened :
             return
-        self.on_settings.opened = True
+        self.on_settings_opened = True
         tmp = self.show_animation
         self.show_animation = False
         
@@ -150,6 +152,14 @@ class window:
         _sorted_ = tk.Checkbutton(top_settings, text='sort by radius',
                                       variable=sorted_, onvalue=1, offvalue=0)
         self.sorted_flag and _sorted_.select()
+        
+        interp_ = tk.IntVar()
+        _interp_ = tk.LabelFrame(top_settings, text='Interpolation')
+        for i, text in enumerate(['none', 'linear', 'spline']) :
+            __btn = tk.Radiobutton(_interp_, text=text, variable=interp_, value=i)
+            self.interpolation == i and __btn.select()
+            __btn.pack(anchor=tk.W)
+        _interp_.pack(side=tk.TOP, fill=tk.X)
         _sorted_.pack(side=tk.TOP, fill=tk.X)
         
         def top_closing() :
@@ -158,6 +168,7 @@ class window:
             window.MAX_TRACERS = tracers()
             window.MIN_CIRCLE_SIZE = mincirc()
             self.sorted_flag = sorted_.get()
+            self.interpolation = interp_.get()
             self.on_clear()
             if tmp :
                 self.calculate()
@@ -215,7 +226,7 @@ class window:
         def top_closing() :
             top_export.destroy()
             self.on_export_opened = False
-        _filter_zero.pack(side=tk.TOP)
+        _filter_zero.pack(side=tk.TOP, anchor=tk.W)
         button_gif = tk.Button(frame_widgets, text='export as gif', command=save_gif)
         button_mp4 = tk.Button(frame_widgets, text='export as mp4', command=save_mp4)
         button_gif.pack(side=tk.TOP, fill=tk.X)
@@ -351,17 +362,36 @@ class window:
     def calculate(self) :
         if len(self.points) < 4 :
             return
-        _z = (np.append(self.points[::2], [self.points[0]]) + \
-                    np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
-        _t = np.arange(len(_z))
-        f = interp1d(_t, _z)
-        t = np.linspace(0, len(_z)-1, window.L_BIN)
-        array = f(t)
+        self.show_animation = False
         map(lambda x : self.canvas.delete(x), self.epicycles_id)
         self.epicycles_id = []
         map(lambda x : self.canvas.delete(x), self.through_lines_id)
         self.through_lines_id = []
         self.listbox_epicycles.delete(0, tk.END)
+        
+        if self.interpolation == 1 :
+            _z = (np.append(self.points[::2], [self.points[0]]) + \
+                        np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
+            _t = np.arange(len(_z))
+            f = interp1d(_t, _z)
+            t = np.linspace(0, len(_z)-1, window.L_BIN)
+            array = f(t)
+        elif self.interpolation == 2 :
+            try :
+                ax = np.append(self.points[::2], [self.points[0]])
+                ay = np.append(self.points[1::2], [self.points[1]])
+                tck, u = splprep([ax, ay], s=0)
+                unew = np.arange(0, 1.001, 0.001)
+                out = splev(unew, tck)
+                array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
+            except SystemError:
+                msgbox.showerror('Error', 'Bad input points: \n'
+                                 'Did you click somewhere more than once?\n'
+                                 'Try change input points or use another interpolation algorithm.')
+                return
+        else :
+            array = np.append(self.points[::2], [self.points[0]])/window.SIZE + \
+                np.append(self.points[1::2], [self.points[1]])/window.SIZE*1.0j
         acircle = fft2circle.get_circle_fft(array)
         self.r = []
         self.p = []
