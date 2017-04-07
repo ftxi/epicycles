@@ -5,7 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 '''
-This is a saparated package.
+This is a saparate package.
 '''
 
 import numpy as np
@@ -119,3 +119,26 @@ def mp4(filename, size, r, p, n, l, **options) :
         progresscallback("\nNow, try again.")
     except KeyboardInterrupt :
         writer.close()
+
+def text(filename, r, p, n, l, **options):
+    filter_zero = options.get('filter_zero', True)
+    str_x = '%2.2f*cos(%d*t%s)'
+    str_y = '%2.2f*sin(%d*t%s)'
+    sx = ''
+    sy = ''
+    def sign_(x) :
+        if x >= 0 :
+            return '+%2.2f' % x
+        else :
+            return '%2.2f' % x
+    with open(filename, 'w') as file_ :
+        N = len(n)
+        for k in range(N) :
+            if filter_zero and n[k] == 0:
+                continue
+            sx += '+' + str_x % (r[k], n[k]*l[k], sign_(p[k]))
+            sy += '+' + str_y % (r[k], -n[k]*l[k], sign_(-p[k]))
+        file_.write('x(t) = ' + sx[1:] + '\n')
+        file_.write('y(t) = ' + sy[1:] + '\n')
+
+        

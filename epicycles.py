@@ -216,6 +216,12 @@ class window:
                 top_export.update()
                 progressbar.update()
                 progresslabel.update()
+        def save_txt() :
+            filename = filedialog.asksaveasfilename(parent=top_export,
+                        defaultextension='.txt', initialfile='animation.txt')
+            if not filename :
+                return
+            epi_core.text(filename, self.r, self.p, self.n, self.v, filter_zero=filter_zero.get())
         def save_gif() :
             filename = filedialog.asksaveasfilename(parent=top_export,
                         defaultextension='.gif', initialfile='animation.gif')
@@ -253,8 +259,10 @@ class window:
             top_export.destroy()
             self.on_export_opened = False
         _filter_zero.pack(side=tk.TOP, anchor=tk.W)
+        button_txt = tk.Button(frame_widgets, text='export as text', command=save_txt)
         button_gif = tk.Button(frame_widgets, text='export as gif', command=save_gif)
         button_mp4 = tk.Button(frame_widgets, text='export as mp4', command=save_mp4)
+        button_txt.pack(side=tk.TOP, fill=tk.X)
         button_gif.pack(side=tk.TOP, fill=tk.X)
         button_mp4.pack(side=tk.TOP, fill=tk.X)
         frame_widgets.pack(side=tk.TOP)
