@@ -12,10 +12,17 @@ import numpy as np
 from math import sin, cos
 import imageio
 from PIL import Image, ImageDraw
-import time
+import sys, time
 
-def gif(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=200, progresscallback=lambda s: print(s)) :
-    DIFF = 2
+FINISH_STRING = '\ndone'
+DIFF = 2
+
+def gif(filename, size, r, p, n, l, **options) :
+    line_min = options.get('line_min', 5)
+    filter_zero = options.get('filter_zero', True)
+    frames = options.get('frames', 200)
+    progresscallback = options.get('progresscallback', lambda s: print(s, file=sys.stderr))
+    
     size *= DIFF
     N = len(n)
     ts = np.linspace(0, 2*np.pi, frames, endpoint=False)
@@ -47,12 +54,18 @@ def gif(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=200, pr
     create_image._y_ = 0.0
     create_image.first = True
     images = map(create_image, ts)
-    progresscallback('calculation finished, saving...')
+    progresscallback('...\ncalculation finished, saving...')
     imageio.mimsave(filename, images)
-    progresscallback('done.')
+    progresscallback(FINISH_STRING)
 
-def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fps=32, progresscallback=lambda s: print(s)) :
-    DIFF = 2
+def mp4(filename, size, r, p, n, l, **options) :
+    line_min = options.get('line_min', 5)
+    filter_zero = options.get('filter_zero', True)
+    frames = options.get('frames', 400)
+    fps = options.get('fps', 32)
+    progresscallback = options.get('progresscallback', lambda s: print(s, file=sys.stderr))
+    progresscallbackfreq = options.get('progresscallbackfreq', 5)
+    
     size *= DIFF
     N = len(n)
     ts = np.linspace(0, 2*np.pi, frames, endpoint=False)
@@ -61,7 +74,6 @@ def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fp
     progress = 0
     progress_max = 2*frames
     begin = time.time()
-    progresscallbackfreq = 5
     
     def create_image(t) :
         img = imgbase.copy()
@@ -95,13 +107,15 @@ def mp4(filename, size, r, p, n, l, line_min=5, filter_zero=True, frames=400, fp
             progress += 1
             if progress % progresscallbackfreq == 0 :
                  eta = (time.time()-begin)*(progress_max - progress)/progress
-                 progresscallback('%2.2f percent finished, E. T. A. %dm %ds' 
+                 progresscallback('-+-\n%2.2f percent finished, E. T. A. %dm %ds' 
                                   % ((progress/progress_max*100), eta//60, int(eta)%60))
-        progresscallback('calculation finished, saving...')
+        progresscallback('...\ncalculation finished, saving...')
         writer.close()
-        progresscallback('done.')
+        progresscallback(FINISH_STRING)
     except imageio.core.NeedDownloadError :
         progresscallback("Oops. It is said that 'Need ffmpeg exe' by imageio module, \n"
                          "which I am trying to. Wait a minute.")
         imageio.plugins.ffmpeg.download()
-        progresscallback("Now, try again.")
+        progresscallback("\nNow, try again.")
+    except KeyboardInterrupt :
+        writer.close()

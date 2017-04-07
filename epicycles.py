@@ -24,6 +24,7 @@ except ImportError :
 
 import time
 import threading
+import webbrowser
 from math import sin, cos, floor, pi, log
 import numpy as np
 import fft2circle
@@ -47,6 +48,7 @@ class window:
     '''
     The program window.
     '''
+    MIN_SIZE = 100
     SIZE = 320
     REFRESH = 40  # refresh every 40 miliseconds
     MAX_TRACERS = 1000
@@ -55,10 +57,12 @@ class window:
     L_BIN = 1024
     LINED_CIRCLE_MIN = 5.
     MIN_CIRCLE_SIZE = 0.3
+    PROGRESSCALLBACKFREQ = 5
     
     def __init__(self):
         self.root = tk.Tk()
         self.root.title('Epicycles --An Enternal...')
+        self.root.resizable(0, 0)
         self.points = []
         # `points` is something like `[x1, y1, x2, y2, ...]`
         self.canvas = tk.Canvas(self.root, width=window.SIZE * 2, height=window.SIZE * 2, bd=0, bg='antiqueWhite')
@@ -81,10 +85,11 @@ class window:
         self.sorted_flag = 1
         self.on_settings_opened = False
         self.on_export_opened = False
+        self.on_about_opened = False
         self.interpolation = 1
         # 0 stands for none, 1 stands for linear, 2 stands for splev
         # widgets
-        self.frame_buttons = tk.Frame(self.root, width=100)
+        self.frame_buttons = tk.Frame(self.root, width=150)
         self.button_settings = tk.Button(self.frame_buttons, 
                                          text='settings', command=self.on_settings)
         self.button_settings.pack(side=tk.TOP, fill=tk.X)
@@ -127,6 +132,9 @@ class window:
         self.button_clear = tk.Button(self.frame_buttons,
                                       text='clear tracers', command=self.on_clear)
         self.button_clear.pack(side=tk.TOP, fill=tk.X)
+        self.button_clear_all = tk.Button(self.frame_buttons,
+                                      text='clear everything', command=self.on_clear_all)
+        self.button_clear_all.pack(side=tk.TOP, fill=tk.X)
         self.button_about = tk.Button(self.frame_buttons,
                                       text='About Epicycles & sclereid', command=self.on_about)
         self.button_about.pack(side=tk.TOP, fill=tk.X)
@@ -134,15 +142,16 @@ class window:
         self.drawing = False
         self.draw()
         self.root.mainloop()
-        
+    
     def on_settings(self) :
         if self.on_settings_opened :
             return
         self.on_settings_opened = True
         tmp = self.show_animation
         self.show_animation = False
-        
         top_settings = tk.Toplevel(self.root)
+        top_settings.resizable(0, 0)
+        top_settings.title('Settings')
         speed = _scale(top_settings, 'speed', 1, 40, window.SPEED*5., lambda x : x/5.)
         lbin = _scale(top_settings, 'datas', 4, 20, log(window.L_BIN, 2), lambda x : 2**x)
         tracers = _scale(top_settings, 'tracers', 50, 2000, window.MAX_TRACERS)
@@ -161,7 +170,6 @@ class window:
             __btn.pack(anchor=tk.W)
         _interp_.pack(side=tk.TOP, fill=tk.X)
         _sorted_.pack(side=tk.TOP, fill=tk.X)
-        
         def top_closing() :
             window.SPEED = speed()
             window.L_BIN = lbin()
@@ -183,6 +191,8 @@ class window:
         self.on_export_opened = True
         filter_zero = tk.IntVar()
         top_export = tk.Toplevel(self.root)
+        top_export.resizable(0, 0)
+        top_export.title('Export')
         frame_widgets = tk.Frame(top_export)
         _filter_zero = tk.Checkbutton(frame_widgets, text='filter static circle',
                                       variable=filter_zero, onvalue=1, offvalue=0)
@@ -192,19 +202,27 @@ class window:
         progressbar = ttk.Progressbar(top_export, orient="horizontal", length=400)
         progresslabel = tk.Label(top_export,
                     text='Note: fps and frames modification\n are only avalible for mp4 option')
+        self.export_flag = False
+        self.kill_flag = False
         def _update_progress(s) :
-            progressbar.step()
-            progresslabel.config(text=s)
-            top_export.update()
-            progressbar.update()
-            progresslabel.update()
+            if self.kill_flag :
+                self.kill_flag = False
+                raise KeyboardInterrupt
+            if s == epi_core.FINISH_STRING :
+                self.export_flag = False
+            if self.on_export_opened :  #sometimes the user have closed the window in advance
+                progressbar.step()
+                progresslabel.config(text=s)
+                top_export.update()
+                progressbar.update()
+                progresslabel.update()
         def save_gif() :
             filename = filedialog.asksaveasfilename(parent=top_export,
                         defaultextension='.gif', initialfile='animation.gif')
             if not filename :
                 return
             t = threading.Thread(target = lambda : epi_core.gif(filename, window.SIZE, self.r, self.p, self.n, self.v,
-                         window.LINED_CIRCLE_MIN, frames=320, filter_zero=filter_zero.get()))
+                         line_min=window.LINED_CIRCLE_MIN, frames=320, filter_zero=filter_zero.get()))
             progressbar.config(maximum=2)
             button_gif.configure(state=tk.DISABLED)
             button_mp4.configure(state=tk.DISABLED)
@@ -217,13 +235,21 @@ class window:
             top_export.focus_force()
             self.exporting = True
             t = threading.Thread(target = lambda : epi_core.mp4(filename, window.SIZE, self.r, self.p, self.n, self.v,
-                         window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
-                         fps=fps(), frames=frames(), progresscallback=_update_progress))
+                         line_min=window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
+                         fps=fps(), frames=frames(), progresscallback=_update_progress,
+                         progresscallbackfreq = window.PROGRESSCALLBACKFREQ))
             progressbar.config(maximum=frames()*2//5 + 2)
             button_gif.configure(state=tk.DISABLED)
             button_mp4.configure(state=tk.DISABLED)
+            self.export_flag = True
             t.run()
         def top_closing() :
+            if self.export_flag :
+                if msgbox.askyesno(message='Export progress not finished, \n'
+                    'exit anyway?') :
+                    self.kill_flag = True
+                else :
+                    return
             top_export.destroy()
             self.on_export_opened = False
         _filter_zero.pack(side=tk.TOP, anchor=tk.W)
@@ -274,21 +300,35 @@ class window:
         self.button_hide_image.config(state=tk.DISABLED)
     
     def on_about(self) :
-        tmp = self.show_animation
-        self.show_animation = False
-        msgbox.showinfo('Epicycles', 
-                        'A small program to display epicycles with given image.\n'
-                        '\n'
-                        'Authors:\n' 
-                        'sclereid: https://github.com/sclereid\n'
-                        'zyyztyy: https://github.com/zzyztyy\n'
-                        '\n'
-                        'Source:  https://github.com/sclereid/epicycles\n'
-                        '\n'
-                        'Note:   This is a GPL licensed software.\n'
-                        )
-        self.show_animation = tmp
-        
+        if self.on_about_opened :
+            return
+        self.on_about_opened = True
+        top_about = tk.Toplevel(self.root)
+        top_about.title('About Epicycles')
+        def hyperlinklabel(master, s, link, **kw) :
+            u = tk.Label(master, text=s, foreground='blue', cursor='hand', anchor=tk.W, **kw)
+            u.bind('<Button-1>', lambda event : webbrowser.open_new(link))
+            return u
+        frame_description = tk.LabelFrame(top_about, text='Description:')
+        tk.Label(frame_description, text='A small program to display epicycles with given image.', anchor=tk.W).pack()
+        hyperlinklabel(frame_description, 'Introduction', r'https://sclereid.github.io/epicycles').pack()
+        hyperlinklabel(frame_description, 'Source on GitHub', r'https://github.com/sclereid/epicycles').pack()
+        frame_description.pack(side=tk.TOP, fill=tk.X)
+        frame_credits = tk.LabelFrame(top_about, text='Credits:')
+        tk.Label(frame_credits, text='Authors are:', anchor=tk.W).pack()
+        hyperlinklabel(frame_credits, 'sclereid', r'https://github.com/sclereid').pack()
+        hyperlinklabel(frame_credits, 'zyyztyy', r'https://github.com/zzyztyy').pack()
+        frame_credits.pack(side=tk.TOP, fill=tk.X)
+        frame_license = tk.LabelFrame(top_about, text='License:')
+        tk.Label(frame_license, text='You should have received a copy of the GNU \n'
+                 'General Public License along with this program, \n'
+                 'if not, see :', anchor=tk.W).pack()
+        hyperlinklabel(frame_license, r'http://www.gnu.org/licenses/', r'http://www.gnu.org/licenses/').pack()
+        frame_license.pack(side=tk.TOP, fill=tk.X)
+        def top_closing() :
+            self.on_about_opened = False
+            top_about.destroy()
+        top_about.protocol('WM_DELETE_WINDOW', top_closing)
     
     def onclick(self, me) :
         self.points.append(me.x - window.SIZE)
@@ -305,7 +345,7 @@ class window:
         self.listbox_points.insert(tk.END, 'point[%d] \tat (%3d, %3d)' 
                                  % (len(self.points)//2, me.x - window.SIZE, me.y - window.SIZE))
 
-    def undo_click(self, me) :
+    def undo_click(self, *args) :
         if len(self.points) > 0:
             self.canvas.delete(self.points_id.pop())
             self.points.pop()
@@ -315,8 +355,27 @@ class window:
             self.canvas.delete(self.lines_id)
             
     def on_clear(self) :
-        map(lambda x : x and self.canvas.delete(x), self.tracers_id)
+        for x in self.tracers_id :
+            x and self.canvas.delete(x)
         self.tracers_id = [0] * window.MAX_TRACERS
+    
+    def on_clear_all(self) :
+        tmp = self.show_animation
+        self.show_animation = False
+        if msgbox.askyesno('Are you sure?', "By clicking 'yes', \n"
+                           "all your current work will be abandont.") :
+            for x in self.epicycles_id :
+                self.canvas.delete(x)
+            self.epicycles_id = []
+            for x in self.through_lines_id :
+                self.canvas.delete(x)
+            self.through_lines_id = []
+            self.listbox_epicycles.delete(0, tk.END)
+            while len(self.points) > 0 :
+                self.undo_click()
+        else :
+            self.show_animation = tmp
+        self.on_clear()
         
     def draw(self) :
         self.canvas.after(window.REFRESH, self.draw)
@@ -347,7 +406,7 @@ class window:
             self.upload_tracers(int(x) + window.SIZE, int(y) + window.SIZE)
         if self.show_lines and len(self.points) >= 4 :
             self.canvas.delete(self.lines_id)
-            self.lines_id = self.canvas.create_polygon(list(map(lambda z: z+window.SIZE, self.points)), fill='', outline='gray70')
+            self.lines_id = self.canvas.create_polygon([z + window.SIZE for z in self.points], fill='', outline='gray70')
         self.drawing = False
 
     def upload_tracers(self, x, y) :
@@ -363,12 +422,14 @@ class window:
         if len(self.points) < 4 :
             return
         self.show_animation = False
-        map(lambda x : self.canvas.delete(x), self.epicycles_id)
+        self.on_clear()
+        for x in self.epicycles_id :
+            self.canvas.delete(x)
         self.epicycles_id = []
-        map(lambda x : self.canvas.delete(x), self.through_lines_id)
+        for x in self.through_lines_id :
+            self.canvas.delete(x)
         self.through_lines_id = []
         self.listbox_epicycles.delete(0, tk.END)
-        
         if self.interpolation == 1 :
             _z = (np.append(self.points[::2], [self.points[0]]) + \
                         np.append(self.points[1::2], [self.points[1]]) * 1.0j)/window.SIZE
@@ -381,13 +442,15 @@ class window:
                 ax = np.append(self.points[::2], [self.points[0]])
                 ay = np.append(self.points[1::2], [self.points[1]])
                 tck, u = splprep([ax, ay], s=0)
-                unew = np.arange(0, 1.001, 0.001)
+                unew = np.linspace(0, 1, window.L_BIN)
                 out = splev(unew, tck)
                 array = out[0]/window.SIZE + out[1]*1.0j/window.SIZE
             except SystemError:
                 msgbox.showerror('Error', 'Bad input points: \n'
                                  'Did you click somewhere more than once?\n'
-                                 'Try change input points or use another interpolation algorithm.')
+                                 'Try change input points or use another interpolation algorithm.',
+                                 icon='error')
+                self.button_animation.configure(state=tk.DISABLED)
                 return
         else :
             array = np.append(self.points[::2], [self.points[0]])/window.SIZE + \
