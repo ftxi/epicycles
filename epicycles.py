@@ -87,9 +87,19 @@ class window:
         self.on_export_opened = False
         self.on_about_opened = False
         self.interpolation = 1
-        # 0 stands for none, 1 stands for linear, 2 stands for splev
+        # 0 stands for none, 1 stands for linear, 2 stands for spline
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=150)
+        self.notebook = ttk.Notebook(self.root)
+        self.frame_logs = tk.Frame(width=100)
+        self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=17)
+        self.listbox_points.pack()
+        self.notebook.add(self.frame_logs, text='points')
+        self.frame_epicycles = tk.Frame(width=100)
+        self.listbox_epicycles = tk.Listbox(self.frame_epicycles, activestyle='dotbox', height=17)
+        self.listbox_epicycles.pack()
+        self.notebook.add(self.frame_epicycles, text='epicycles')
+        self.notebook.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
         self.button_settings = tk.Button(self.frame_buttons, 
                                          text='settings', command=self.on_settings)
         self.button_settings.pack(side=tk.TOP, fill=tk.X)
@@ -111,21 +121,6 @@ class window:
                                           text='show animation',
                                           state=tk.DISABLED, command=self.on_toggle_animation)
         self.button_animation.pack(side=tk.TOP, fill=tk.X)
-        
-        self.notebook = ttk.Notebook(self.root)
-        
-        self.frame_logs = tk.Frame(width=100)
-        self.listbox_points = tk.Listbox(self.frame_logs, activestyle='dotbox', height=17)
-        self.listbox_points.pack()
-        self.notebook.add(self.frame_logs, text='points')
-        
-        self.frame_epicycles = tk.Frame(width=100)
-        self.listbox_epicycles = tk.Listbox(self.frame_epicycles, activestyle='dotbox', height=17)
-        self.listbox_epicycles.pack()
-        
-        self.notebook.add(self.frame_epicycles, text='epicycles')
-        self.notebook.pack(side=tk.TOP, expand=tk.YES, fill=tk.X)
-        
         self.button_lines = tk.Button(self.frame_buttons,
                                       text='toggle lines display', command=self.on_lines_display)
         self.button_lines.pack(side=tk.TOP, fill=tk.X)
@@ -210,6 +205,8 @@ class window:
                 raise KeyboardInterrupt
             if s == epi_core.FINISH_STRING :
                 self.export_flag = False
+                button_gif.configure(state=tk.NORMAL)
+                button_mp4.configure(state=tk.NORMAL)
             if self.on_export_opened :  #sometimes the user have closed the window in advance
                 progressbar.step()
                 progresslabel.config(text=s)
@@ -228,7 +225,8 @@ class window:
             if not filename :
                 return
             t = threading.Thread(target = lambda : epi_core.gif(filename, window.SIZE, self.r, self.p, self.n, self.v,
-                         line_min=window.LINED_CIRCLE_MIN, frames=320, filter_zero=filter_zero.get()))
+                         line_min=window.LINED_CIRCLE_MIN, frames=320, filter_zero=filter_zero.get(),
+                         progresscallback=_update_progress, progresscallbackfreq = window.PROGRESSCALLBACKFREQ))
             progressbar.config(maximum=2)
             button_gif.configure(state=tk.DISABLED)
             button_mp4.configure(state=tk.DISABLED)
@@ -244,7 +242,7 @@ class window:
                          line_min=window.LINED_CIRCLE_MIN, filter_zero=filter_zero.get(),
                          fps=fps(), frames=frames(), progresscallback=_update_progress,
                          progresscallbackfreq = window.PROGRESSCALLBACKFREQ))
-            progressbar.config(maximum=frames()*2//5 + 2)
+            progressbar.config(maximum=frames()*2//window.PROGRESSCALLBACKFREQ + 2)
             button_gif.configure(state=tk.DISABLED)
             button_mp4.configure(state=tk.DISABLED)
             self.export_flag = True
@@ -371,7 +369,7 @@ class window:
         tmp = self.show_animation
         self.show_animation = False
         if msgbox.askyesno('Are you sure?', "By clicking 'yes', \n"
-                           "all your current work will be abandont.") :
+                           "all your current work will be abandoned.") :
             for x in self.epicycles_id :
                 self.canvas.delete(x)
             self.epicycles_id = []
@@ -492,3 +490,4 @@ class window:
 
 if __name__ == '__main__' :
     window()
+
