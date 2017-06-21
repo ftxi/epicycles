@@ -234,9 +234,9 @@ if __name__ == '__main__' :
     '''
     A sample code.
     '''
-    size = 320
+    size = 80
     array = np.array([np.exp(x*4.0j*np.pi/5) for x in range(5)]) * size
     data = init(array, interpolation='linear', sort_=True, min_=10)
-    mp4('animation.mp4', size, *data, fps=40)
+    gif('star.gif', size, *data)
 
     

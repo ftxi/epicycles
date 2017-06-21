@@ -1,0 +1,54 @@
+
+Manual
+========
+
+### Get started:
+
+1. Before you start painting, you can load an image as the background(By clicking `open an image` and select from your files). Note that either load an image or not is fine.
+
+2. Outline your image with your mouse. Click left mouse button to add a point, and click right mouse to remove a point. The red point is the last one you have just added, while previous ones are yellow.
+
+### Calculation:
+
+1. Click the `calculate` button after you have finished your painting. The epicyclical data will be computed and saved by this time.
+
+2. There are some alternative sittings, you can choose your preferences by clicking the `settings` button:
+
+ * `min circle size`. This relates to the minimal size of the circle. Increase this value to get a simpler, and smoother curve. Decrease it to have a more accurate output.
+
+ * `speed`. The speed of the animation displayed in the window.
+
+ * `max tracers`. Maximum amount of the tracers.
+
+ * `interpolation`. We use a linear interpolation algorithm to fetch more data of the input motion, whereas this can be configured. If you would like to have a better understanding about the calculation or have a smoother output, you can either switch to `none` or `spline` instead of `linear`.
+
+ * `data`. The amount of output values in the interpolation algorithm.
+
+ * `sorted by radius`. Select it to sort circle by their radius, otherwise default by frequency.
+
+### Others:
+
+1. Once the calculation is finished, you can turn on the animation display by clicking `show animation` button. Note that this function rely on the last epicyclical data calculation, i. e., the data by the last time you press the `calculate` button.
+
+2. Besides displaying on the screen, you can also export the animation as `.gif` or `.mp4` files. Steps are:
+
+ * Press `export` button.
+
+ * If you would like to export as a mp4 movie, configure the `
+fps` and `frames` scale(where `frames` is the amount of frames of drawing the whole motion once) and click `export as mp4` button. Select your directory and file to save, and... wait. It takes a while.
+
+ * If you would like to export as an animated gif image, press the `export as mp4` button. Due to the memory problem, the frames and fps of a gif is not available for configuration.
+
+ * If you are interested in mathematical functions of the motion, click the `export as text` button.
+
+ **Notice:**
+
+ * mp4 output requires your computer to have `ffmpeg` installed. If you haven't install a such software, the program will automatically download one to the default directory.
+
+ * `filter static circle` means not to show a circle which is not moving.
+
+3. `clear tracers` and `clear everything` are used for removing things.
+
+* * * * * * * * * * * * * * * * * * * *
+
+This is a GPL Licensed software. While using and distributing, please follow the terms.
