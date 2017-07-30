@@ -61,7 +61,7 @@ class window:
     
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title('Epicycles --An Enternal...')
+        self.root.title('Epicycles --An Eternal...')
         self.root.resizable(0, 0)
         self.points = []
         # `points` is something like `[x1, y1, x2, y2, ...]`
