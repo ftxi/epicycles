@@ -49,4 +49,13 @@ If you were running from the source, remember to install [python](https://www.py
 
 Download from the releases or run the source file in python. Should be simple enough.
 
+***REMARK***
+
+Due to the frequent Mac OS update, the previous release has some minor issues (the label on the buttons are now invisible). However, thanks to the same reason, I didn't made it to rebuilt a satisfying program. So, for those who just want to have a try, plese use the latest release. After drawing the image, press the fifth and the sixth button sequentially. Or, if you are familiar with command lines, a better solution is to run the following lines. (April 2019)
+
+```
+pip install numpy scipy imageio
+python epicycle.py
+```
+
 Have fun!
