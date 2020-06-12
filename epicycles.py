@@ -13,7 +13,10 @@ except ImportError :         #python 3
     from tkinter import filedialog
     import tkinter.messagebox as msgbox
 
-import ttk
+try :
+    import ttk
+except ImportError:          #python 3.6+
+    import tkinter.ttk as ttk
 from PIL import ImageTk, Image
 
 try :
@@ -312,7 +315,8 @@ class window:
         top_about = tk.Toplevel(self.root)
         top_about.title('About Epicycles')
         def hyperlinklabel(master, s, link, **kw) :
-            u = tk.Label(master, text=s, foreground='blue', cursor='hand', anchor=tk.W, **kw)
+            u = tk.Label(master, text=s, foreground='blue', # cursor='hand', # there are certain systems doesn't support this 
+                         anchor=tk.W, **kw)
             u.bind('<Button-1>', lambda event : webbrowser.open_new(link))
             return u
         frame_description = tk.LabelFrame(top_about, text='Description:')
