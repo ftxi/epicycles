@@ -15,7 +15,7 @@ except ImportError :         #python 3
 
 try :
     import ttk
-except ImportError:          #python 3.6+
+except ImportError :         #python 3.6+
     import tkinter.ttk as ttk
 from PIL import ImageTk, Image
 
@@ -84,6 +84,7 @@ class window:
         self.points_id = []
         self.epicycles_id = []
         self.tracers_id = [0] * window.MAX_TRACERS
+        self.images_id = []
         self.tn = 0
         self.sorted_flag = 1
         self.on_settings_opened = False
@@ -91,6 +92,8 @@ class window:
         self.on_about_opened = False
         self.interpolation = 1
         # 0 stands for none, 1 stands for linear, 2 stands for spline
+        self.align_method = 1
+        # 0 for crop upper-left square, 2 for scale down, 3 for fill
         # widgets
         self.frame_buttons = tk.Frame(self.root, width=150)
         self.notebook = ttk.Notebook(self.root)
@@ -282,31 +285,60 @@ class window:
     def on_open_image(self) :
         tmp = self.show_animation
         self.show_animation = False
-        try :
-            self.img_path = filedialog.askopenfilename(
-                        parent=self.root,
-                        title='select background image to open')
-            with Image.open(self.img_path) as originimg :
-                height, width = originimg.size
-                size = min(height, width)
-                img = originimg.crop((0, 0, size, size)).resize((window.SIZE*2, window.SIZE*2))
-                tkimg = ImageTk.PhotoImage(img)
-                self._label = tk.Label(image=tkimg)
-                self._label.image = tkimg     #hack a refrance to make python2.7 happy                
-                self._image = self.canvas.create_image(window.SIZE, window.SIZE, image=tkimg)
-                self.button_hide_image.config(state=tk.NORMAL)
-        except IOError :                    #exception when PIL cannot recognize the image
-            msgbox.showerror('Invalid image file', 'Please select a photo,\n'
-                             'e.g. example.tiff, juli.jpg, money.png', icon='warning')
-        except AttributeError :             #exception when cancal open a file
-            pass
+        def open_image():
+            try :
+                self.img_path = filedialog.askopenfilename(
+                            parent=self.root,
+                            title='select background image to open')
+                with Image.open(self.img_path) as originimg :
+                    height, width = originimg.size
+                    if self.align_method == 0 :
+                        size = min(height, width)
+                        img = originimg.crop((0, 0, size, size)).resize((window.SIZE*2, window.SIZE*2))
+                    elif self.align_method == 1 :
+                        size = max(height, width)
+                        img = originimg.resize((height*window.SIZE*2//size, width*window.SIZE*2//size))
+                    else :
+                        img = originimg.resize((window.SIZE*2, window.SIZE*2))
+                    tkimg = ImageTk.PhotoImage(img)
+                    self._label = tk.Label(image=tkimg)
+                    self._label.image = tkimg     #hack a refrance to make python2.7 happy                
+                    self.images_id.append(self.canvas.create_image(window.SIZE, window.SIZE, image=tkimg))
+                    self.button_hide_image.config(state=tk.NORMAL)
+                    
+            except IOError :                    #exception when PIL cannot recognize the image
+                msgbox.showerror('Invalid image file', 'Please select a photo,\n'
+                                'e.g. example.tiff, juli.jpg, money.png', icon='warning')
+            except AttributeError :             #exception when cancal open a file
+                pass
+        
+        top_open_image = tk.Toplevel(self.root)
+        top_open_image.resizable(0, 0)
+        top_open_image.title('Open Image')
+        align_ = tk.IntVar()
+        _align_ = tk.LabelFrame(top_open_image, text='Align (non-Square) Image')
+        for i, text in enumerate(['Crop Upper-Left Square', 'Scale Down & Center', 'Fill']) :
+            __btn = tk.Radiobutton(_align_, text=text, variable=align_, value=i)
+            self.align_method == i and __btn.select()
+            __btn.pack(anchor=tk.W)
+        _align_.pack(side=tk.LEFT, fill=tk.X)
+        def on_choose():
+            self.align_method = align_.get()
+            #print("self.align_method =", self.align_method)
+            open_image()
+            top_open_image.destroy()
+        button_choose = tk.Button(top_open_image, text='choose from files', command=on_choose)
+        button_choose.pack(side=tk.LEFT, fill=tk.X)
+
         self.on_clear()
         self.show_animation = tmp
         
     def on_hide_image(self) :
-        self.canvas.delete(self._image)
-        del self._label
-        self.button_hide_image.config(state=tk.DISABLED)
+        self.canvas.delete(self.images_id.pop())
+        if '_label' in dir(self) :
+            del self._label
+        if len(self.images_id) == 0 :
+            self.button_hide_image.config(state=tk.DISABLED)
     
     def on_about(self) :
         if self.on_about_opened :
@@ -465,7 +497,7 @@ class window:
         else :
             array = np.append(self.points[::2], [self.points[0]])/window.SIZE + \
                 np.append(self.points[1::2], [self.points[1]])/window.SIZE*1.0j
-        acircle = fft2circle.get_circle_fft(array)
+        acircle = fft2circle.get_circle_fft(array[:-1])
         self.r = []
         self.p = []
         self.n = []
@@ -494,4 +526,3 @@ class window:
 
 if __name__ == '__main__' :
     window()
-

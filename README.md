@@ -17,7 +17,7 @@ Inspired by this article: [*The Mathematical Power of Epicyclical Astronomy*](ht
 
 ### Status:
 
-***Improving***
+***Maintaining***
 
 More Features:
 ------------
@@ -59,8 +59,10 @@ venv\Scripts\pyinstaller.exe epicycles.py --hidden-import pkg_resources.py2_warn
 Due to the frequent Mac OS update, the previous release has some minor issues (the label on the buttons are now invisible). However, thanks to the same reason, I didn't made it to rebuilt a satisfying program. So, for those who just want to have a try, plese use the latest release. After drawing the image, press the fifth and the sixth button sequentially. Or, if you are familiar with command lines, a better solution is to run the following lines. (April 2019)
 
 ```
-pip install numpy scipy imageio
+pip install numpy scipy imageio pillow
 python epicycle.py
 ```
+
+A new release is available for Windows users. I test it on Windows 10 and it operates normally.
 
 Have fun!
